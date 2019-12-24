@@ -1,13 +1,19 @@
 package main
 
 import (
-	"log"
-	"time"
+    "time"
+    "io/ioutil"
+    "net/http"
+    "net/url"
 	"github.com/go-redis/redis/v7"
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/debug"
 	"github.com/gocolly/colly/extensions"
 )
+
+func randomProxySwitcher(_ *http.Request) (*url.URL, error) {
+    return &url.URL{Host: "10.30.1.18:3128"}, nil
+}
 
 func main() {
 	c := colly.NewCollector(
@@ -21,9 +27,9 @@ func main() {
 		Parallelism: 2,
 		RandomDelay: time.Second,
 	})
-
+    c.SetProxyFunc(randomProxySwitcher)
 	c.OnResponse(func(r *colly.Response) {
-		log.Println(string(r.Body))
+        ioutil.WriteFile("a.html",r.Body, 0644)
 	})
 
 	client := redis.NewClient(&redis.Options{
