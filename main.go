@@ -46,7 +46,7 @@ func genFilename(url string) string {
 	h := md5.New()
 	io.WriteString(h, url)
 	io.WriteString(h, time.Now().String())
-	return fmt.Sprintf("%x", h.Sum(nil))
+	return fmt.Sprintf("%x.html", h.Sum(nil))
 }
 
 // Seed 种子格式
@@ -62,7 +62,7 @@ func main() {
 	)
 	extensions.RandomUserAgent(c)
 
-	c.SetProxyFunc(randomProxySwitcher)
+	//c.SetProxyFunc(randomProxySwitcher)
 	c.OnResponse(func(r *colly.Response) {
 		reqURL := r.Request.URL.String()
 		if strings.Contains(reqURL, notifyPath) {
@@ -71,12 +71,13 @@ func main() {
 		filename := genFilename(reqURL)
 
 		ioutil.WriteFile(
-			fmt.Sprintf("%s/%s.html", PATH, filename),
+			fmt.Sprintf("%s/%s", PATH, filename),
 			append(r.Body[:], []byte(urlExtra[r.Request.URL.String()])...),
 			0644)
 		params := url.Values{}
 		params.Add("filepath", PATH)
 		params.Add("filename", filename)
+		params.Add("url", reqURL)
 		c.Visit(notifyPath + params.Encode())
 	})
 	// Set error handler
