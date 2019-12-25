@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
 	"github.com/go-redis/redis/v7"
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/debug"
@@ -75,7 +76,7 @@ func main() {
 			append(r.Body[:], []byte(
 				fmt.Sprintf("\nEND\nSEEDINFO\n %s \nSEEDINFO", urlExtra[r.Request.URL.String()]))...),
 			0644)
-        if err != nil{
+		if err != nil {
 			fmt.Println(err)
 			return
 		}
@@ -105,14 +106,17 @@ func main() {
 			continue
 		}
 		// TODO 没用通用规则，只能这样!!!
-		_, ok := hostSet[u.Host]
+		l := len(strings.Split(u.Host, "."))
+		key := strings.Join(
+			strings.Split(u.Host, ".")[l-2:], ".")
+		_, ok := hostSet[key]
 		if !ok {
 			c.Limit(&colly.LimitRule{
 				DomainGlob:  fmt.Sprintf("*%s*", u.Host),
 				Parallelism: 2,
 				RandomDelay: time.Second,
 			})
-			hostSet[u.Host] = true
+			hostSet[key] = true
 		}
 		c.Visit(seed.URL)
 	}
