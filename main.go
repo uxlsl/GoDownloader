@@ -1,18 +1,22 @@
 package main
 
 import (
-    "time"
-    "io/ioutil"
-    "net/http"
-    "net/url"
-	"github.com/go-redis/redis/v7"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"time"
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/debug"
-	"github.com/gocolly/colly/extensions"
+    "github.com/gocolly/colly/extensions"
+    "github.com/go-redis/redis/v7"
 )
 
+// PATH 下载地址
+var PATH = "/home/lin/test/"
+
 func randomProxySwitcher(_ *http.Request) (*url.URL, error) {
-    return &url.URL{Host: "10.30.1.18:3128"}, nil
+	return &url.URL{Host: "10.30.1.18:3128"}, nil
 }
 
 func main() {
@@ -22,14 +26,13 @@ func main() {
 	)
 	extensions.RandomUserAgent(c)
 
-	c.Limit(&colly.LimitRule{
-		DomainGlob:  "*httpbin.*",
-		Parallelism: 2,
-		RandomDelay: time.Second,
-	})
-    c.SetProxyFunc(randomProxySwitcher)
+	c.SetProxyFunc(randomProxySwitcher)
 	c.OnResponse(func(r *colly.Response) {
-        ioutil.WriteFile("a.html",r.Body, 0644)
+		ioutil.WriteFile(PATH+"/a.html", r.Body, 0644)
+	})
+	// Set error handler
+	c.OnError(func(r *colly.Response, err error) {
+		fmt.Println("Request URL:", r.Request.URL, "failed with response:", r, "\nError:", err)
 	})
 
 	client := redis.NewClient(&redis.Options{
@@ -37,13 +40,27 @@ func main() {
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	})
-
+    hostSet := make(map[string]bool)
 	for {
-        v,err:= client.LPop("GODownloader:start_urls").Result()
-        if err != nil{
-            break
+		v, err := client.LPop("GODownloader:start_urls").Result()
+		if err != nil {
+			time.Sleep(time.Duration(2) * time.Second)
+			continue
+		}
+		u, err := url.Parse(v)
+		if err != nil {
+			continue
+        }
+        // TODO 没用通用规则，只能这样!!!
+        _, ok := hostSet[u.Host]
+        if !ok{
+            c.Limit(&colly.LimitRule{
+                DomainGlob:  fmt.Sprintf("*%s*", u.Host),
+                Parallelism: 2,
+                RandomDelay: time.Second,
+            })
+            hostSet[u.Host] = true
         }
 		c.Visit(v)
 	}
-	c.Wait()
 }
