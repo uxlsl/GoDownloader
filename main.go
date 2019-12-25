@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 	"github.com/go-redis/redis/v7"
 	"github.com/gocolly/colly"
@@ -30,6 +31,9 @@ var CLIENT = redis.NewClient(&redis.Options{
 
 var urlExtra = make(map[string]string)
 
+// 下载文件完成,通知的服务地址
+var notifyPath = "http://localhost:9015/notify?"
+
 func randomProxySwitcher(_ *http.Request) (*url.URL, error) {
 	host, err := CLIENT.SRandMember("GZYF_Test:Proxy_Pool:H").Result()
 	if err != nil {
@@ -39,9 +43,9 @@ func randomProxySwitcher(_ *http.Request) (*url.URL, error) {
 }
 
 func genFilename(url string) string {
-    h := md5.New()
-    io.WriteString(h, url)
-    io.WriteString(h, time.Now().String())
+	h := md5.New()
+	io.WriteString(h, url)
+	io.WriteString(h, time.Now().String())
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
@@ -60,13 +64,20 @@ func main() {
 
 	c.SetProxyFunc(randomProxySwitcher)
 	c.OnResponse(func(r *colly.Response) {
-		fmt.Printf(r.Request.URL.String())
-		fmt.Println(genFilename(r.Request.URL.String()))
+		reqURL := r.Request.URL.String()
+		if strings.Contains(reqURL, notifyPath) {
+			return
+		}
+		filename := genFilename(reqURL)
 
 		ioutil.WriteFile(
-			fmt.Sprintf("%s/%s.html", PATH, genFilename(r.Request.URL.String())),
+			fmt.Sprintf("%s/%s.html", PATH, filename),
 			append(r.Body[:], []byte(urlExtra[r.Request.URL.String()])...),
 			0644)
+		params := url.Values{}
+		params.Add("filepath", PATH)
+		params.Add("filename", filename)
+		c.Visit(notifyPath + params.Encode())
 	})
 	// Set error handler
 	c.OnError(func(r *colly.Response, err error) {
