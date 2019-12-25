@@ -69,6 +69,10 @@ func main() {
 		if strings.Contains(reqURL, notifyPath) {
 			return
 		}
+		if r.StatusCode != 200{
+			fmt.Println("返回状态码不对!")
+			return
+		}
 		filename := genFilename(reqURL)
 
 		err := ioutil.WriteFile(
