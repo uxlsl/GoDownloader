@@ -17,10 +17,10 @@ import (
 )
 
 // PATH 下载地址
-var PATH = "/home/lin/work/test/"
+var PATH = "/yf/Downloads"
 
 // REDISHOST 地址
-var REDISHOST = "localhost:6379"
+var REDISHOST = "10.30.1.20:6379"
 
 // CLIENT redis 客户端
 var CLIENT = redis.NewClient(&redis.Options{
@@ -70,10 +70,15 @@ func main() {
 		}
 		filename := genFilename(reqURL)
 
-		ioutil.WriteFile(
+		err := ioutil.WriteFile(
 			fmt.Sprintf("%s/%s", PATH, filename),
-			append(r.Body[:], []byte(urlExtra[r.Request.URL.String()])...),
+			append(r.Body[:], []byte(
+				fmt.Sprintf("\nEND\nSEEDINFO\n %s \nSEEDINFO", urlExtra[r.Request.URL.String()]))...),
 			0644)
+        if err != nil{
+			fmt.Println(err)
+			return
+		}
 		params := url.Values{}
 		params.Add("filepath", PATH)
 		params.Add("filename", filename)

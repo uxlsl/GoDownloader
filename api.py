@@ -4,7 +4,8 @@ from flask import Flask, escape, request
 
 app = Flask(__name__)
 celery = Celery(
-            broker="redis://10.30.1.19/2", backend="redis://10.30.1.19/3")
+            broker="redis://10.30.1.18/2", 
+            backend="redis://10.30.1.18/3")
 
 @app.route('/notify')
 def hello():
