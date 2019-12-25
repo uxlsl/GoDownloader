@@ -35,7 +35,16 @@ var urlExtra = make(map[string]string)
 // 下载文件完成,通知的服务地址
 var notifyPath = "http://localhost:9015/notify?"
 
-func randomProxySwitcher(_ *http.Request) (*url.URL, error) {
+func isServer(url string) bool {
+	if strings.Contains(url, notifyPath) {
+		return true
+	}
+	return false
+}
+func randomProxySwitcher(req *http.Request) (*url.URL, error) {
+	if isServer(req.URL.String()) {
+		return nil, nil
+	}
 	host, err := CLIENT.SRandMember("GZYF_Test:Proxy_Pool:H").Result()
 	if err != nil {
 		return &url.URL{Host: "10.30.1.18:3128"}, nil
@@ -60,16 +69,16 @@ func main() {
 	c := colly.NewCollector(
 		colly.Debugger(&debug.LogDebugger{}),
 		colly.Async(true),
+		colly.AllowURLRevisit(),
 	)
 	extensions.RandomUserAgent(c)
-
 	//c.SetProxyFunc(randomProxySwitcher)
 	c.OnResponse(func(r *colly.Response) {
 		reqURL := r.Request.URL.String()
-		if strings.Contains(reqURL, notifyPath) {
+		if isServer(reqURL) {
 			return
 		}
-		if r.StatusCode != 200{
+		if r.StatusCode != 200 {
 			fmt.Println("返回状态码不对!")
 			return
 		}
@@ -92,7 +101,7 @@ func main() {
 	})
 	// Set error handler
 	c.OnError(func(r *colly.Response, err error) {
-		fmt.Println("Request URL:", r.Request.URL, "failed with response:", r, "\nError:", err)
+		fmt.Println("Request URL:", r.Request.URL, "\nError:", err)
 	})
 
 	hostSet := make(map[string]bool)
