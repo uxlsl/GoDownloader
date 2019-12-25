@@ -132,5 +132,7 @@ func main() {
 			hostSet[key] = true
 		}
 		c.Visit(seed.URL)
+		// TODO 不能一下子把所有url放进去!
+		time.Sleep(time.Duration(1) * time.Microsecond)
 	}
 }
