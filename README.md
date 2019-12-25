@@ -6,7 +6,10 @@
 ## 运行
 
 ```
-
+export GOPROXY=https://goproxy.cn
 go run main.go
 
 ```
+
+## 参考
+https://github.com/goproxy/goproxy.cn/blob/master/README.zh-CN.md
