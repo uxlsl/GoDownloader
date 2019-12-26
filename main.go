@@ -142,7 +142,7 @@ func main() {
 			}
 			urls = append(urls, v)
 		}
-		fmt.Println(urls)
+		fmt.Printf("从队列中取出url数量 %d\n", len(urls))
 		if len(urls) > 0{
 			download(urls)
 		}else{
