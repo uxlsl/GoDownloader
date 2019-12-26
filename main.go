@@ -65,14 +65,14 @@ type Seed struct {
 	Data string `json:data`
 }
 
-func main() {
+func download(urls []string) {
 	c := colly.NewCollector(
 		colly.Debugger(&debug.LogDebugger{}),
 		colly.Async(true),
 		colly.AllowURLRevisit(),
 	)
 	extensions.RandomUserAgent(c)
-	//c.SetProxyFunc(randomProxySwitcher)
+	c.SetProxyFunc(randomProxySwitcher)
 	c.OnResponse(func(r *colly.Response) {
 		reqURL := r.Request.URL.String()
 		if isServer(reqURL) {
@@ -105,12 +105,7 @@ func main() {
 	})
 
 	hostSet := make(map[string]bool)
-	for {
-		v, err := CLIENT.LPop("GoDownloader:start_urls").Result()
-		if err != nil {
-			time.Sleep(time.Duration(2) * time.Second)
-			continue
-		}
+	for _, v := range urls {
 		var seed Seed
 		json.Unmarshal([]byte(v), &seed)
 		urlExtra[seed.URL] = seed.Data
@@ -119,9 +114,10 @@ func main() {
 			continue
 		}
 		// TODO 没用通用规则，只能这样!!!
-		l := len(strings.Split(u.Host, "."))
-		key := strings.Join(
-			strings.Split(u.Host, ".")[l-2:], ".")
+		// l := len(strings.Split(u.Host, "."))
+		// key := strings.Join(
+		// 	strings.Split(u.Host, ".")[l-2:], ".")
+		key := u.Host
 		_, ok := hostSet[key]
 		if !ok {
 			c.Limit(&colly.LimitRule{
@@ -132,7 +128,26 @@ func main() {
 			hostSet[key] = true
 		}
 		c.Visit(seed.URL)
-		// TODO 不能一下子把所有url放进去!
-		time.Sleep(time.Duration(1) * time.Microsecond)
+	}
+	c.Wait()
+}
+
+func main() {
+	for {
+		urls := make([]string, 0)
+		for i := 0; i < 1000; i++ {
+			v, err := CLIENT.LPop("GoDownloader:start_urls").Result()
+			if err != nil {
+				break
+			}
+			urls = append(urls, v)
+		}
+		fmt.Println(urls)
+		if len(urls) > 0{
+			download(urls)
+		}else{
+			time.Sleep(time.Duration(3)*time.Second)
+		}
+
 	}
 }
