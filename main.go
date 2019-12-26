@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"errors"
 
 	"github.com/go-redis/redis/v7"
 	"github.com/gocolly/colly"
@@ -74,6 +75,7 @@ func download(urls []string) {
 	extensions.RandomUserAgent(c)
 	c.SetProxyFunc(randomProxySwitcher)
 	c.OnResponse(func(r *colly.Response) {
+		fmt.Println(r.StatusCode,r.Request.URL)
 		reqURL := r.Request.URL.String()
 		if isServer(reqURL) {
 			return
@@ -103,7 +105,10 @@ func download(urls []string) {
 	c.OnError(func(r *colly.Response, err error) {
 		fmt.Println("Request URL:", r.Request.URL, "\nError:", err)
 	})
-
+	c.RedirectHandler = func(req *http.Request, via []*http.Request) error{
+		fmt.Println("redirect")
+		return  errors.New("不能重定向")
+	}
 	hostSet := make(map[string]bool)
 	for _, v := range urls {
 		var seed Seed
