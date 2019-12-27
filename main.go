@@ -3,14 +3,15 @@ package main
 import (
 	"crypto/md5"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
-	"errors"
 
 	"github.com/go-redis/redis/v7"
 	"github.com/gocolly/colly"
@@ -72,11 +73,11 @@ func download(urls []string) {
 		colly.Async(true),
 		colly.AllowURLRevisit(),
 	)
-	c.SetRequestTimeout(time.Duration(30)*time.Second)
+	c.SetRequestTimeout(time.Duration(30) * time.Second)
 	extensions.RandomUserAgent(c)
-	c.SetProxyFunc(randomProxySwitcher)
+	//c.SetProxyFunc(randomProxySwitcher)
 	c.OnResponse(func(r *colly.Response) {
-		fmt.Println(r.StatusCode,r.Request.URL)
+		fmt.Println(r.StatusCode, r.Request.URL)
 		reqURL := r.Request.URL.String()
 		if isServer(reqURL) {
 			return
@@ -92,7 +93,7 @@ func download(urls []string) {
 			append(r.Body[:], []byte(
 				fmt.Sprintf("\nEND\nSEEDINFO\n %s \nSEEDINFO", urlExtra[r.Request.URL.String()]))...),
 			0644)
-        delete(urlExtra, r.Request.URL.String())
+		delete(urlExtra, r.Request.URL.String())
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -106,10 +107,28 @@ func download(urls []string) {
 	// Set error handler
 	c.OnError(func(r *colly.Response, err error) {
 		fmt.Println("Request URL:", r.Request.URL, "\nError:", err)
+		count := r.Ctx.Get("retry_times")
+		if count == "" {
+			r.Ctx.Put("retry_times", "1")
+			r.Request.Retry()
+		} else {
+			c, err := strconv.Atoi(count)
+			if err != nil {
+				return
+			}
+			if c < 3 {
+				r.Ctx.Put("retry_times", string(c+1))
+				r.Request.Retry()
+			}
+		}
 	})
-	c.RedirectHandler = func(req *http.Request, via []*http.Request) error{
+	c.OnRequest(func(r *colly.Request) {
+		fmt.Println("OnRequest")
+		r.Ctx.Put("url", r.URL.String())
+	})
+	c.RedirectHandler = func(req *http.Request, via []*http.Request) error {
 		fmt.Println("redirect")
-		return  errors.New("不能重定向")
+		return errors.New("不能重定向")
 	}
 	hostSet := make(map[string]bool)
 	for _, v := range urls {
@@ -150,10 +169,10 @@ func main() {
 			urls = append(urls, v)
 		}
 		fmt.Printf("从队列中取出url数量 %d\n", len(urls))
-		if len(urls) > 0{
+		if len(urls) > 0 {
 			download(urls)
-		}else{
-			time.Sleep(time.Duration(3)*time.Second)
+		} else {
+			time.Sleep(time.Duration(3) * time.Second)
 		}
 
 	}
