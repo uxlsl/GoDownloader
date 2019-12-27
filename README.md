@@ -6,8 +6,9 @@
 ## 运行
 
 ```
+
 export GOPROXY=https://goproxy.cn
-go run main.go
+go run main.go ./dev.yaml|./prod.yaml
 
 ```
 
