@@ -28,11 +28,7 @@ type Conf struct {
 	Redis string `yaml:redis`
 }
 
-// 全局配置
-var CONF Conf
-
-// CLIENT redis 客户端
-var CLIENT *redis.Client
+var downloader Downloader
 
 var urlExtra = make(map[string]string)
 
@@ -44,16 +40,6 @@ func isServer(url string) bool {
 		return true
 	}
 	return false
-}
-func randomProxySwitcher(req *http.Request) (*url.URL, error) {
-	if isServer(req.URL.String()) {
-		return nil, nil
-	}
-	host, err := CLIENT.SRandMember("GZYF_Test:Proxy_Pool:H").Result()
-	if err != nil {
-		return &url.URL{Host: "10.30.1.18:3128"}, nil
-	}
-	return &url.URL{Host: host}, nil
 }
 
 func genFilename(url string) string {
@@ -68,8 +54,26 @@ type Seed struct {
 	URL  string `json:url`
 	Data string `json:data`
 }
+type Downloader struct {
+	conf   Conf
+	client *redis.Client
+}
 
-func download(urls []string) {
+func (d Downloader) randomProxySwitcher(req *http.Request) (*url.URL, error) {
+	if isServer(req.URL.String()) {
+		return nil, nil
+	}
+	host, err := d.client.SRandMember("GZYF_Test:Proxy_Pool:H").Result()
+	if err != nil {
+		return &url.URL{Host: "10.30.1.18:3128"}, nil
+	}
+	return &url.URL{Host: host}, nil
+}
+
+func (d Downloader) download(urls []string) {
+	randomProxySwitcher := func(req *http.Request) (*url.URL, error) {
+		return d.randomProxySwitcher(req)
+	}
 	c := colly.NewCollector(
 		colly.Debugger(&debug.LogDebugger{}),
 		colly.Async(true),
@@ -77,7 +81,8 @@ func download(urls []string) {
 	)
 	c.SetRequestTimeout(time.Duration(30) * time.Second)
 	extensions.RandomUserAgent(c)
-	//c.SetProxyFunc(randomProxySwitcher)
+
+	c.SetProxyFunc(randomProxySwitcher)
 	c.OnResponse(func(r *colly.Response) {
 		fmt.Println(r.StatusCode, r.Request.URL)
 		reqURL := r.Request.URL.String()
@@ -91,7 +96,7 @@ func download(urls []string) {
 		filename := genFilename(reqURL)
 
 		err := ioutil.WriteFile(
-			fmt.Sprintf("%s/%s", CONF.Path, filename),
+			fmt.Sprintf("%s/%s", d.conf.Path, filename),
 			append(r.Body[:], []byte(
 				fmt.Sprintf("\nEND\nSEEDINFO\n %s \nSEEDINFO", urlExtra[r.Request.URL.String()]))...),
 			0644)
@@ -101,7 +106,7 @@ func download(urls []string) {
 			return
 		}
 		params := url.Values{}
-		params.Add("filepath", CONF.Path)
+		params.Add("filepath", d.conf.Path)
 		params.Add("filename", filename)
 		params.Add("url", reqURL)
 		c.Visit(notifyPath + params.Encode())
@@ -164,24 +169,25 @@ func init() {
 	if err != nil {
 		log.Fatalf("error: %v", err)
 	}
-	err = yaml.Unmarshal(data, &CONF)
+	err = yaml.Unmarshal(data, &downloader.conf)
 	if err != nil {
 		log.Fatalf("error: %v", err)
 	}
 	fmt.Println("读取配置为:")
-	fmt.Println(CONF)
+	fmt.Println(downloader.conf)
 
-	CLIENT = redis.NewClient(&redis.Options{
-		Addr:     CONF.Redis,
+	downloader.client = redis.NewClient(&redis.Options{
+		Addr:     downloader.conf.Redis,
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	})
 }
-func main() {
+
+func (d Downloader) run() {
 	for {
 		urls := make([]string, 0)
 		for i := 0; i < 1000; i++ {
-			v, err := CLIENT.LPop("GoDownloader:start_urls").Result()
+			v, err := downloader.client.LPop("GoDownloader:start_urls").Result()
 			if err != nil {
 				break
 			}
@@ -189,10 +195,13 @@ func main() {
 		}
 		fmt.Printf("从队列中取出url数量 %d\n", len(urls))
 		if len(urls) > 0 {
-			download(urls)
+			downloader.download(urls)
 		} else {
 			time.Sleep(time.Duration(3) * time.Second)
 		}
-
 	}
 }
+
+func main() {
+	downloader.run()
+} http.ResponseWriter, r *http.Request
