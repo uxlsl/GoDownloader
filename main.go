@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -17,20 +19,20 @@ import (
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/debug"
 	"github.com/gocolly/colly/extensions"
+	"gopkg.in/yaml.v2"
 )
 
-// PATH 下载地址
-var PATH = "/yf/Downloads"
+// 配置结构
+type Conf struct {
+	Path  string `yaml:path`
+	Redis string `yaml:redis`
+}
 
-// REDISHOST 地址
-var REDISHOST = "10.30.1.20:6379"
+// 全局配置
+var CONF Conf
 
 // CLIENT redis 客户端
-var CLIENT = redis.NewClient(&redis.Options{
-	Addr:     REDISHOST,
-	Password: "", // no password set
-	DB:       0,  // use default DB
-})
+var CLIENT *redis.Client
 
 var urlExtra = make(map[string]string)
 
@@ -89,7 +91,7 @@ func download(urls []string) {
 		filename := genFilename(reqURL)
 
 		err := ioutil.WriteFile(
-			fmt.Sprintf("%s/%s", PATH, filename),
+			fmt.Sprintf("%s/%s", CONF.Path, filename),
 			append(r.Body[:], []byte(
 				fmt.Sprintf("\nEND\nSEEDINFO\n %s \nSEEDINFO", urlExtra[r.Request.URL.String()]))...),
 			0644)
@@ -99,7 +101,7 @@ func download(urls []string) {
 			return
 		}
 		params := url.Values{}
-		params.Add("filepath", PATH)
+		params.Add("filepath", CONF.Path)
 		params.Add("filename", filename)
 		params.Add("url", reqURL)
 		c.Visit(notifyPath + params.Encode())
@@ -157,7 +159,24 @@ func download(urls []string) {
 	}
 	c.Wait()
 }
+func init() {
+	data, err := ioutil.ReadFile(os.Args[1])
+	if err != nil {
+		log.Fatalf("error: %v", err)
+	}
+	err = yaml.Unmarshal(data, &CONF)
+	if err != nil {
+		log.Fatalf("error: %v", err)
+	}
+	fmt.Println("读取配置为:")
+	fmt.Println(CONF)
 
+	CLIENT = redis.NewClient(&redis.Options{
+		Addr:     CONF.Redis,
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+}
 func main() {
 	for {
 		urls := make([]string, 0)
