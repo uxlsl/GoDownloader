@@ -72,7 +72,7 @@ func download(urls []string) {
 		colly.Async(true),
 		colly.AllowURLRevisit(),
 	)
-	c.SetRequestTimeout(30)
+	c.SetRequestTimeout(time.Duration(30)*time.Second)
 	extensions.RandomUserAgent(c)
 	c.SetProxyFunc(randomProxySwitcher)
 	c.OnResponse(func(r *colly.Response) {
