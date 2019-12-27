@@ -91,6 +91,7 @@ func download(urls []string) {
 			append(r.Body[:], []byte(
 				fmt.Sprintf("\nEND\nSEEDINFO\n %s \nSEEDINFO", urlExtra[r.Request.URL.String()]))...),
 			0644)
+        delete(urlExtra, r.Request.URL.String())
 		if err != nil {
 			fmt.Println(err)
 			return
