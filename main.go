@@ -28,8 +28,6 @@ type Conf struct {
 	Redis string `yaml:redis`
 }
 
-var downloader Downloader
-
 var urlExtra = make(map[string]string)
 
 // 下载文件完成,通知的服务地址
@@ -54,6 +52,7 @@ type Seed struct {
 	URL  string `json:url`
 	Data string `json:data`
 }
+// Downloader 结构
 type Downloader struct {
 	conf   Conf
 	client *redis.Client
@@ -164,8 +163,10 @@ func (d Downloader) download(urls []string) {
 	}
 	c.Wait()
 }
-func init() {
-	data, err := ioutil.ReadFile(os.Args[1])
+// NewDownloader 初始化downloader
+func NewDownloader(confPath string) Downloader{
+	var downloader Downloader
+	data, err := ioutil.ReadFile(confPath)
 	if err != nil {
 		log.Fatalf("error: %v", err)
 	}
@@ -181,27 +182,35 @@ func init() {
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	})
+	return downloader
 }
 
 func (d Downloader) run() {
 	for {
-		urls := make([]string, 0)
-		for i := 0; i < 1000; i++ {
-			v, err := downloader.client.LPop("GoDownloader:start_urls").Result()
-			if err != nil {
-				break
-			}
-			urls = append(urls, v)
-		}
+		urls := d.getUrls(1000)
 		fmt.Printf("从队列中取出url数量 %d\n", len(urls))
 		if len(urls) > 0 {
-			downloader.download(urls)
+			d.download(urls)
 		} else {
 			time.Sleep(time.Duration(3) * time.Second)
 		}
 	}
 }
 
+func(d Downloader) getUrls(num int)[]string{
+	urls := make([]string, 0)
+	for i := 0; i < num; i++ {
+		v, err := d.client.LPop("GoDownloader:start_urls").Result()
+		if err != nil {
+			break
+		}
+		urls = append(urls, v)
+	}
+	return urls
+}
+
+
 func main() {
+	downloader := NewDownloader(os.Args[1])
 	downloader.run()
 } 
