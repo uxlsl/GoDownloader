@@ -211,6 +211,9 @@ func(d Downloader) getUrls(num int)[]string{
 
 
 func main() {
+	if len(os.Args) == 1{
+		log.Fatalf("请提供配置文件参数")
+	}
 	downloader := NewDownloader(os.Args[1])
 	downloader.run()
 } 
