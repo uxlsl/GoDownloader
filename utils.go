@@ -29,7 +29,8 @@ func ESFHandle(c *colly.Collector) {
 		if !exists {
 			return
 		}
-		urlExtra[url] = r.Ctx.Get("data")
+		urlExtra[url] = urlExtra[r.Request.URL.String()]
+		delete(urlExtra, r.Request.URL.String())
 		c.Visit(url)
 	})
 }
