@@ -78,12 +78,9 @@ func (d Downloader) download(urls []string) {
 		colly.Async(true),
 		colly.AllowURLRevisit(),
 	)
-	c.SetRequestTimeout(time.Duration(30) * time.Second)
-	extensions.RandomUserAgent(c)
-	SetRetry(c)
-	c.SetProxyFunc(randomProxySwitcher)
+
 	c.OnResponse(func(r *colly.Response) {
-		fmt.Println(r.StatusCode, r.Request.URL)
+		fmt.Println(r.StatusCode, r.Request.URL, r.Ctx.Get("url"))
 		reqURL := r.Request.URL.String()
 		if isServer(reqURL) {
 			return
@@ -92,12 +89,15 @@ func (d Downloader) download(urls []string) {
 			fmt.Println("返回状态码不对!")
 			return
 		}
+		if r.Request.URL.String() != r.Ctx.Get("url") {
+			fmt.Println("请求地址发生变化!")
+			return
+		}
 		filename := genFilename(reqURL)
-
+		extraHTML := fmt.Sprintf("\nEND\nSEEDINFO\n %s \nSEEDINFO", r.Ctx.Get("data"))
 		err := ioutil.WriteFile(
 			fmt.Sprintf("%s/%s", d.conf.Path, filename),
-			append(r.Body[:], []byte(
-				fmt.Sprintf("\nEND\nSEEDINFO\n %s \nSEEDINFO", urlExtra[r.Request.URL.String()]))...),
+			append(r.Body[:], []byte(extraHTML)...),
 			0644)
 		if err != nil {
 			fmt.Println(err)
@@ -107,9 +107,8 @@ func (d Downloader) download(urls []string) {
 		params.Add("filepath", d.conf.Path)
 		params.Add("filename", filename)
 		params.Add("url", reqURL)
-		params.Add("data", urlExtra[r.Request.URL.String()])
+		params.Add("data", r.Ctx.Get("data"))
 		c.Visit(notifyPath + params.Encode())
-		delete(urlExtra, r.Request.URL.String())
 	})
 	// Set error handler
 	c.OnError(func(r *colly.Response, err error) {
@@ -118,11 +117,18 @@ func (d Downloader) download(urls []string) {
 	c.OnRequest(func(r *colly.Request) {
 		fmt.Println("OnRequest")
 		r.Ctx.Put("url", r.URL.String())
+		r.Ctx.Put("data", urlExtra[r.URL.String()])
+		delete(urlExtra, r.URL.String())
 	})
 	c.RedirectHandler = func(req *http.Request, via []*http.Request) error {
 		fmt.Println("redirect")
 		return errors.New("不能重定向")
 	}
+	c.SetProxyFunc(randomProxySwitcher)
+	c.SetRequestTimeout(time.Duration(30) * time.Second)
+	extensions.RandomUserAgent(c)
+	SetRetry(c)
+	ESFHandle(c)
 	hostSet := make(map[string]bool)
 	for _, v := range urls {
 		var seed Seed
