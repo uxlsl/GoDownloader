@@ -27,8 +27,6 @@ type Conf struct {
 	Redis string `yaml:redis`
 }
 
-var urlExtra = make(map[string]string)
-
 // 下载文件完成,通知的服务地址
 var notifyPath = "http://localhost:9015/notify?"
 
@@ -116,9 +114,10 @@ func (d Downloader) download(urls []string) {
 	})
 	c.OnRequest(func(r *colly.Request) {
 		fmt.Println("OnRequest")
+		m, _ := url.ParseQuery(r.URL.RawQuery)
 		r.Ctx.Put("url", r.URL.String())
-		r.Ctx.Put("data", urlExtra[r.URL.String()])
-		delete(urlExtra, r.URL.String())
+		r.Ctx.Put("data", m["data"][0])
+		r.URL.RawQuery = ""
 	})
 	c.RedirectHandler = func(req *http.Request, via []*http.Request) error {
 		fmt.Println("redirect")
@@ -133,7 +132,6 @@ func (d Downloader) download(urls []string) {
 	for _, v := range urls {
 		var seed Seed
 		json.Unmarshal([]byte(v), &seed)
-		urlExtra[seed.URL] = seed.Data
 		u, err := url.Parse(seed.URL)
 		if err != nil {
 			continue
@@ -152,7 +150,9 @@ func (d Downloader) download(urls []string) {
 			})
 			hostSet[key] = true
 		}
-		c.Visit(seed.URL)
+		params := url.Values{}
+		params.Add("data", seed.Data)
+		c.Visit(seed.URL + "?"+ params.Encode())
 	}
 	c.Wait()
 }

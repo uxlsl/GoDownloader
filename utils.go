@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -25,11 +26,15 @@ func ESFHandle(c *colly.Collector) {
 		if err != nil {
 			return
 		}
-		url, exists := doc.Find(".btn-redir").First().Attr("href")
+		esf, exists := doc.Find(".btn-redir").First().Attr("href")
 		if !exists {
 			return
 		}
-		urlExtra[url] = r.Ctx.Get("data")
-		c.Visit(url)
+		u, err := url.Parse(esf)
+		if err != nil {
+			return
+		}
+		r.Request.URL = u
+		r.Request.Retry()
 	})
 }
