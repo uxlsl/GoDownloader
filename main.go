@@ -99,7 +99,6 @@ func (d Downloader) download(urls []string) {
 			append(r.Body[:], []byte(
 				fmt.Sprintf("\nEND\nSEEDINFO\n %s \nSEEDINFO", urlExtra[r.Request.URL.String()]))...),
 			0644)
-		delete(urlExtra, r.Request.URL.String())
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -108,7 +107,9 @@ func (d Downloader) download(urls []string) {
 		params.Add("filepath", d.conf.Path)
 		params.Add("filename", filename)
 		params.Add("url", reqURL)
+		params.Add("data", urlExtra[r.Request.URL.String()])
 		c.Visit(notifyPath + params.Encode())
+		delete(urlExtra, r.Request.URL.String())
 	})
 	// Set error handler
 	c.OnError(func(r *colly.Response, err error) {

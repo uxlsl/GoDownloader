@@ -12,6 +12,7 @@ def hello():
     file_name = request.args.get("filename")
     file_path = request.args.get("filepath")
     url = request.args.get("url")
+    data = request.args.get("data")
     celery.send_task(
                 "anjuke_upload_service.upload_service.upload_new_file",
                 args=[
@@ -19,7 +20,7 @@ def hello():
                     file_path,
                     file_name,
                     int(time.time()), 
-                    "GoDownloader:start_urls", 
+                    data,
                     url
                 ],
                 queue='upload_queue_anjuke')
