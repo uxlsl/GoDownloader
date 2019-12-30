@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -52,6 +51,7 @@ type Seed struct {
 	URL  string `json:url`
 	Data string `json:data`
 }
+
 // Downloader 结构
 type Downloader struct {
 	conf   Conf
@@ -80,7 +80,7 @@ func (d Downloader) download(urls []string) {
 	)
 	c.SetRequestTimeout(time.Duration(30) * time.Second)
 	extensions.RandomUserAgent(c)
-
+	SetRetry(c)
 	c.SetProxyFunc(randomProxySwitcher)
 	c.OnResponse(func(r *colly.Response) {
 		fmt.Println(r.StatusCode, r.Request.URL)
@@ -113,20 +113,6 @@ func (d Downloader) download(urls []string) {
 	// Set error handler
 	c.OnError(func(r *colly.Response, err error) {
 		fmt.Println("Request URL:", r.Request.URL, "\nError:", err)
-		count := r.Ctx.Get("retry_times")
-		if count == "" {
-			r.Ctx.Put("retry_times", "1")
-			r.Request.Retry()
-		} else {
-			c, err := strconv.Atoi(count)
-			if err != nil {
-				return
-			}
-			if c < 3 {
-				r.Ctx.Put("retry_times", string(c+1))
-				r.Request.Retry()
-			}
-		}
 	})
 	c.OnRequest(func(r *colly.Request) {
 		fmt.Println("OnRequest")
@@ -163,8 +149,9 @@ func (d Downloader) download(urls []string) {
 	}
 	c.Wait()
 }
+
 // NewDownloader 初始化downloader
-func NewDownloader(confPath string) Downloader{
+func NewDownloader(confPath string) Downloader {
 	var downloader Downloader
 	data, err := ioutil.ReadFile(confPath)
 	if err != nil {
@@ -197,7 +184,7 @@ func (d Downloader) run() {
 	}
 }
 
-func(d Downloader) getUrls(num int)[]string{
+func (d Downloader) getUrls(num int) []string {
 	urls := make([]string, 0)
 	for i := 0; i < num; i++ {
 		v, err := d.client.LPop("GoDownloader:start_urls").Result()
@@ -209,11 +196,10 @@ func(d Downloader) getUrls(num int)[]string{
 	return urls
 }
 
-
 func main() {
-	if len(os.Args) == 1{
+	if len(os.Args) == 1 {
 		log.Fatalf("请提供配置文件参数")
 	}
 	downloader := NewDownloader(os.Args[1])
 	downloader.run()
-} 
+}
