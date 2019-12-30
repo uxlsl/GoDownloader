@@ -35,6 +35,7 @@ func ESFHandle(c *colly.Collector) {
 			return
 		}
 		r.Request.URL = u
+		r.Ctx.Put("url", esf)
 		r.Request.Retry()
 	})
 }

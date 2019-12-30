@@ -115,9 +115,12 @@ func (d Downloader) download(urls []string) {
 	c.OnRequest(func(r *colly.Request) {
 		fmt.Println("OnRequest")
 		m, _ := url.ParseQuery(r.URL.RawQuery)
-		r.Ctx.Put("url", r.URL.String())
-		r.Ctx.Put("data", m["data"][0])
-		r.URL.RawQuery = ""
+		url := r.Ctx.Get("url")
+		if url == "" {
+			r.Ctx.Put("url", r.URL.String())
+			r.Ctx.Put("data", m["data"][0])
+			r.URL.RawQuery = ""
+		}
 	})
 	c.RedirectHandler = func(req *http.Request, via []*http.Request) error {
 		fmt.Println("redirect")
@@ -152,7 +155,7 @@ func (d Downloader) download(urls []string) {
 		}
 		params := url.Values{}
 		params.Add("data", seed.Data)
-		c.Visit(seed.URL + "?"+ params.Encode())
+		c.Visit(seed.URL + "?" + params.Encode())
 	}
 	c.Wait()
 }
