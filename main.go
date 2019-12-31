@@ -82,6 +82,7 @@ func (d Downloader) download(urls []string) {
 		fmt.Println(r.StatusCode, r.Request.URL, r.Ctx.Get("url"))
 		reqURL := r.Request.URL.String()
 		if isServer(reqURL) {
+			fmt.Println("是请求本地地址!")
 			return
 		}
 		if r.StatusCode != 200 {
@@ -116,11 +117,17 @@ func (d Downloader) download(urls []string) {
 	c.OnRequest(func(r *colly.Request) {
 		fmt.Println("OnRequest")
 		m, _ := url.ParseQuery(r.URL.RawQuery)
-		url := r.Ctx.Get("url")
-		if url == "" {
-			r.Ctx.Put("url", r.URL.String())
+		if r.Ctx.Get("url") == "" {
 			r.Ctx.Put("data", m["data"][0])
 			r.URL.RawQuery = ""
+			params := url.Values{}
+			for k, v := range m {
+				if k != "data" {
+					params.Add(k, v[0])
+				}
+			}
+			r.URL.RawQuery = params.Encode()
+			r.Ctx.Put("url", r.URL.String())
 		}
 	})
 	c.RedirectHandler = func(req *http.Request, via []*http.Request) error {
@@ -160,11 +167,10 @@ func (d Downloader) download(urls []string) {
 		params.Add("data", seed.Data)
 
 		m, err := url.ParseQuery(u.RawQuery)
-		if err != nil{
+		if err != nil {
 			continue
 		}
-		for k,v := range m{
-			fmt.Println(k,v)
+		for k, v := range m {
 			params.Add(k, v[0])
 		}
 		u.RawQuery = ""
