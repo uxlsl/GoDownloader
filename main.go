@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/debug"
 	"github.com/gocolly/colly/extensions"
+	"github.com/gocolly/colly/queue"
 	"gopkg.in/yaml.v2"
 )
 
@@ -26,6 +28,7 @@ type Conf struct {
 	Path  string `yaml:path`
 	Redis string `yaml:redis`
 	Proxy bool   `yaml:proxy`
+	Num   int    `yaml:num`
 }
 
 // 下载文件完成,通知的服务地址
@@ -150,7 +153,11 @@ func (d Downloader) download(urls []string) {
 	// 	Parallelism: 8,
 	// 	RandomDelay: time.Second,
 	// })
-
+	// create a request queue with 2 consumer threads
+	q, _ := queue.New(
+		runtime.NumCPU(), // Number of consumer threads
+		&queue.InMemoryQueueStorage{MaxSize: 10000}, // Use default queue storage
+	)
 	for _, v := range urls {
 		var seed Seed
 		json.Unmarshal([]byte(v), &seed)
@@ -169,10 +176,9 @@ func (d Downloader) download(urls []string) {
 			params.Add(k, v[0])
 		}
 		u.RawQuery = ""
-		c.Visit(u.String() + "?" + params.Encode())
+		q.AddURL(u.String() + "?" + params.Encode())
 	}
-
-	c.Wait()
+	q.Run(c)
 }
 
 // NewDownloader 初始化downloader
@@ -199,7 +205,7 @@ func NewDownloader(confPath string) Downloader {
 
 func (d Downloader) run() {
 	for {
-		urls := d.getUrls(10000)
+		urls := d.getUrls(d.conf.Num)
 		fmt.Printf("从队列中取出url数量 %d\n", len(urls))
 		if len(urls) > 0 {
 			d.download(urls)

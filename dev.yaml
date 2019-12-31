@@ -1,3 +1,4 @@
 path: /yf/Downloads/
 redis: localhost:6379
 proxy: false
+num: 1000
