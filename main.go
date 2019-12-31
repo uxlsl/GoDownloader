@@ -25,7 +25,7 @@ import (
 type Conf struct {
 	Path     string `yaml:path`
 	Redis    string `yaml:redis`
-	UseProxy bool   `yaml:proxy`
+	Proxy bool    `yaml:proxy`
 }
 
 // 下载文件完成,通知的服务地址
@@ -134,7 +134,7 @@ func (d Downloader) download(urls []string) {
 		fmt.Println("redirect")
 		return errors.New("不能重定向")
 	}
-	if d.conf.UseProxy {
+	if d.conf.Proxy {
 		fmt.Println("使用代理！")
 		c.SetProxyFunc(randomProxySwitcher)
 	}
