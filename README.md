@@ -22,5 +22,10 @@ env FLASK_APP=api.py flask run --port 9015
 python seeds.py 
 ```
 
+## 思考
+
++ 怎样调用私有方法，通过继承!
+
+
 ## 参考
 https://github.com/goproxy/goproxy.cn/blob/master/README.zh-CN.md
