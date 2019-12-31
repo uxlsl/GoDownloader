@@ -141,7 +141,7 @@ func (d Downloader) download(urls []string) {
 		fmt.Println("使用代理！")
 		c.SetProxyFunc(randomProxySwitcher)
 	}
-	c.SetRequestTimeout(time.Duration(30) * time.Second)
+	c.SetRequestTimeout(time.Duration(10) * time.Second)
 	extensions.RandomUserAgent(c)
 	SetRetry(c)
 	ESFHandle(c)
@@ -199,7 +199,7 @@ func NewDownloader(confPath string) Downloader {
 
 func (d Downloader) run() {
 	for {
-		urls := d.getUrls(1000)
+		urls := d.getUrls(10000)
 		fmt.Printf("从队列中取出url数量 %d\n", len(urls))
 		if len(urls) > 0 {
 			d.download(urls)
