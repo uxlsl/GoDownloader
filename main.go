@@ -23,9 +23,9 @@ import (
 
 // 配置结构
 type Conf struct {
-	Path     string `yaml:path`
-	Redis    string `yaml:redis`
-	Proxy bool    `yaml:proxy`
+	Path  string `yaml:path`
+	Redis string `yaml:redis`
+	Proxy bool   `yaml:proxy`
 }
 
 // 下载文件完成,通知的服务地址
@@ -116,6 +116,9 @@ func (d Downloader) download(urls []string) {
 	})
 	c.OnRequest(func(r *colly.Request) {
 		fmt.Println("OnRequest")
+		if isServer(r.URL.String()) {
+			return
+		}
 		m, _ := url.ParseQuery(r.URL.RawQuery)
 		if r.Ctx.Get("url") == "" {
 			r.Ctx.Put("data", m["data"][0])
