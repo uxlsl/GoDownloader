@@ -158,7 +158,17 @@ func (d Downloader) download(urls []string) {
 		}
 		params := url.Values{}
 		params.Add("data", seed.Data)
-		c.Visit(seed.URL + "?" + params.Encode())
+
+		m, err := url.ParseQuery(u.RawQuery)
+		if err != nil{
+			continue
+		}
+		for k,v := range m{
+			fmt.Println(k,v)
+			params.Add(k, v[0])
+		}
+		u.RawQuery = ""
+		c.Visit(u.String() + "?" + params.Encode())
 	}
 	c.Wait()
 }
