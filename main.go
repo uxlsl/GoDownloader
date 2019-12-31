@@ -135,33 +135,25 @@ func (d Downloader) download(urls []string) {
 		return errors.New("不能重定向")
 	}
 	if d.conf.UseProxy {
+		fmt.Println("使用代理！")
 		c.SetProxyFunc(randomProxySwitcher)
 	}
 	c.SetRequestTimeout(time.Duration(30) * time.Second)
 	extensions.RandomUserAgent(c)
 	SetRetry(c)
 	ESFHandle(c)
-	hostSet := make(map[string]bool)
+	c.Limit(&colly.LimitRule{
+		DomainGlob:  "*",
+		Parallelism: 8,
+		RandomDelay: time.Second,
+	})
+
 	for _, v := range urls {
 		var seed Seed
 		json.Unmarshal([]byte(v), &seed)
 		u, err := url.Parse(seed.URL)
 		if err != nil {
 			continue
-		}
-		// TODO 没用通用规则，只能这样!!!
-		// l := len(strings.Split(u.Host, "."))
-		// key := strings.Join(
-		// 	strings.Split(u.Host, ".")[l-2:], ".")
-		key := u.Host
-		_, ok := hostSet[key]
-		if !ok {
-			c.Limit(&colly.LimitRule{
-				DomainGlob:  fmt.Sprintf("*%s*", u.Host),
-				Parallelism: 2,
-				RandomDelay: time.Second,
-			})
-			hostSet[key] = true
 		}
 		params := url.Values{}
 		params.Add("data", seed.Data)
@@ -176,6 +168,7 @@ func (d Downloader) download(urls []string) {
 		u.RawQuery = ""
 		c.Visit(u.String() + "?" + params.Encode())
 	}
+
 	c.Wait()
 }
 
