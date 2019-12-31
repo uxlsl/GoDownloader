@@ -145,11 +145,11 @@ func (d Downloader) download(urls []string) {
 	extensions.RandomUserAgent(c)
 	SetRetry(c)
 	ESFHandle(c)
-	c.Limit(&colly.LimitRule{
-		DomainGlob:  "*",
-		Parallelism: 8,
-		RandomDelay: time.Second,
-	})
+	// c.Limit(&colly.LimitRule{
+	// 	DomainGlob:  "*",
+	// 	Parallelism: 8,
+	// 	RandomDelay: time.Second,
+	// })
 
 	for _, v := range urls {
 		var seed Seed
