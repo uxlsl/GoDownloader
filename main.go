@@ -23,8 +23,9 @@ import (
 
 // 配置结构
 type Conf struct {
-	Path  string `yaml:path`
-	Redis string `yaml:redis`
+	Path     string `yaml:path`
+	Redis    string `yaml:redis`
+	UseProxy bool   `yaml:proxy`
 }
 
 // 下载文件完成,通知的服务地址
@@ -126,7 +127,9 @@ func (d Downloader) download(urls []string) {
 		fmt.Println("redirect")
 		return errors.New("不能重定向")
 	}
-	c.SetProxyFunc(randomProxySwitcher)
+	if d.conf.UseProxy {
+		c.SetProxyFunc(randomProxySwitcher)
+	}
 	c.SetRequestTimeout(time.Duration(30) * time.Second)
 	extensions.RandomUserAgent(c)
 	SetRetry(c)
