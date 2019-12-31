@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"runtime"
 	"strings"
 	"time"
 
@@ -19,7 +18,6 @@ import (
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/debug"
 	"github.com/gocolly/colly/extensions"
-	"github.com/gocolly/colly/queue"
 	"gopkg.in/yaml.v2"
 )
 
@@ -154,10 +152,6 @@ func (d Downloader) download(urls []string) {
 	// 	RandomDelay: time.Second,
 	// })
 	// create a request queue with 2 consumer threads
-	q, _ := queue.New(
-		runtime.NumCPU(), // Number of consumer threads
-		&queue.InMemoryQueueStorage{MaxSize: 10000}, // Use default queue storage
-	)
 	for _, v := range urls {
 		var seed Seed
 		json.Unmarshal([]byte(v), &seed)
@@ -176,9 +170,9 @@ func (d Downloader) download(urls []string) {
 			params.Add(k, v[0])
 		}
 		u.RawQuery = ""
-		q.AddURL(u.String() + "?" + params.Encode())
+		c.Visit(u.String() + "?" + params.Encode())
 	}
-	q.Run(c)
+	c.Wait()
 }
 
 // NewDownloader 初始化downloader
