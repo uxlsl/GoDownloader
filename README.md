@@ -26,6 +26,10 @@ python seeds.py
 
 + 怎样调用私有方法，通过继承!
 
+## TODO
+
++ 统计速度
+
 
 ## 参考
 https://github.com/goproxy/goproxy.cn/blob/master/README.zh-CN.md
