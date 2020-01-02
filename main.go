@@ -90,7 +90,7 @@ func (d Downloader) download(urls []string) {
 	}
 
 	c.OnResponse(func(r *colly.Response) {
-		fmt.Println(r.StatusCode, r.Request.URL, r.Ctx.Get("url"))
+		d.log.Info(r.StatusCode, r.Request.URL, r.Ctx.Get("url"))
 		reqURL := r.Request.URL.String()
 		if isServer(reqURL) {
 			d.log.Debug(reqURL, "是请求本地地址!")
@@ -123,10 +123,10 @@ func (d Downloader) download(urls []string) {
 	})
 	// Set error handler
 	c.OnError(func(r *colly.Response, err error) {
-		d.log.Debug("Request URL:", r.Request.URL, "\nError:", err)
+		d.log.Info("Request URL:", r.Request.URL, "\nError:", err)
 	})
 	c.OnRequest(func(r *colly.Request) {
-		d.log.Debug("OnRequest")
+		d.log.Info("OnRequest")
 		if isServer(r.URL.String()) {
 			return
 		}
@@ -145,11 +145,11 @@ func (d Downloader) download(urls []string) {
 		}
 	})
 	c.RedirectHandler = func(req *http.Request, via []*http.Request) error {
-		d.log.Debug("redirect")
+		d.log.Info("redirect")
 		return errors.New("不能重定向")
 	}
 	if d.conf.Proxy {
-		d.log.Debug("使用代理！")
+		d.log.Info("使用代理！")
 		c.SetProxyFunc(randomProxySwitcher)
 	}
 	c.SetRequestTimeout(time.Duration(10) * time.Second)
