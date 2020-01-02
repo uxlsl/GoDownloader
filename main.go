@@ -28,6 +28,7 @@ type Conf struct {
 	Proxy bool   `yaml:proxy`
 	Num   int    `yaml:num`
 	Debug bool   `yaml:debug`
+	Log   string `yaml:log`
 }
 
 // 下载文件完成,通知的服务地址
@@ -57,6 +58,7 @@ type Seed struct {
 type Downloader struct {
 	conf   Conf
 	client *redis.Client
+	log    *log.Logger
 }
 
 func (d Downloader) randomProxySwitcher(req *http.Request) (*url.URL, error) {
@@ -91,15 +93,15 @@ func (d Downloader) download(urls []string) {
 		fmt.Println(r.StatusCode, r.Request.URL, r.Ctx.Get("url"))
 		reqURL := r.Request.URL.String()
 		if isServer(reqURL) {
-			log.Debug(reqURL, "是请求本地地址!")
+			d.log.Debug(reqURL, "是请求本地地址!")
 			return
 		}
 		if r.StatusCode != 200 {
-			log.Debug(r.StatusCode, "返回状态码不对!")
+			d.log.Debug(r.StatusCode, "返回状态码不对!")
 			return
 		}
 		if r.Request.URL.String() != r.Ctx.Get("url") {
-			log.Debug(r.Request.URL.String(), r.Ctx.Get("url"), "请求地址发生变化")
+			d.log.Debug(r.Request.URL.String(), r.Ctx.Get("url"), "请求地址发生变化")
 			return
 		}
 		filename := genFilename(reqURL)
@@ -121,10 +123,10 @@ func (d Downloader) download(urls []string) {
 	})
 	// Set error handler
 	c.OnError(func(r *colly.Response, err error) {
-		log.Debug("Request URL:", r.Request.URL, "\nError:", err)
+		d.log.Debug("Request URL:", r.Request.URL, "\nError:", err)
 	})
 	c.OnRequest(func(r *colly.Request) {
-		log.Debug("OnRequest")
+		d.log.Debug("OnRequest")
 		if isServer(r.URL.String()) {
 			return
 		}
@@ -143,11 +145,11 @@ func (d Downloader) download(urls []string) {
 		}
 	})
 	c.RedirectHandler = func(req *http.Request, via []*http.Request) error {
-		log.Debug("redirect")
+		d.log.Debug("redirect")
 		return errors.New("不能重定向")
 	}
 	if d.conf.Proxy {
-		log.Debug("使用代理！")
+		d.log.Debug("使用代理！")
 		c.SetProxyFunc(randomProxySwitcher)
 	}
 	c.SetRequestTimeout(time.Duration(10) * time.Second)
@@ -202,19 +204,27 @@ func NewDownloader(confPath string) Downloader {
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	})
+	downloader.log = log.New()
+	// You could set this to any `io.Writer` such as a file
+	file, err := os.OpenFile(downloader.conf.Log, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err == nil {
+		downloader.log.Out = file
+	} else {
+		log.Info("Failed to log to file, using default stderr")
+	}
 	return downloader
 }
 
 func (d Downloader) run() {
 	for {
 		urls := d.getUrls(d.conf.Num)
-		log.Printf("从队列中取出url数量 %d", len(urls))
+		d.log.Printf("从队列中取出url数量 %d", len(urls))
 		if len(urls) > 0 {
 			start := time.Now()
 			d.download(urls)
 			end := time.Now()
 			elapsed := end.Sub(start)
-			log.Info(fmt.Sprintf("url数量%d, 总共花费 %v下载!", len(urls), elapsed))
+			d.log.Info(fmt.Sprintf("url数量%d, 总共花费 %v下载!", len(urls), elapsed))
 		} else {
 			time.Sleep(time.Duration(3) * time.Second)
 		}
