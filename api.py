@@ -25,3 +25,9 @@ def hello():
                 ],
                 queue='upload_queue_anjuke')
     return 'ok'
+
+
+if __name__ == '__main__':
+    from gevent.pywsgi import WSGIServer
+    http_server = WSGIServer(('', 9015), app)
+    http_server.serve_forever()
