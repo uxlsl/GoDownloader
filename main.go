@@ -27,6 +27,7 @@ type Conf struct {
 	Redis string `yaml:redis`
 	Proxy bool   `yaml:proxy`
 	Num   int    `yaml:num`
+	Debug bool   `yaml:debug`
 }
 
 // 下载文件完成,通知的服务地址
@@ -74,10 +75,17 @@ func (d Downloader) download(urls []string) {
 		return d.randomProxySwitcher(req)
 	}
 	c := colly.NewCollector(
-		colly.Debugger(&debug.LogDebugger{}),
 		colly.Async(true),
 		colly.AllowURLRevisit(),
 	)
+	if d.conf.Debug {
+		c = colly.NewCollector(
+			colly.Debugger(&debug.LogDebugger{}),
+			colly.Async(true),
+			colly.AllowURLRevisit(),
+		)
+
+	}
 
 	c.OnResponse(func(r *colly.Response) {
 		fmt.Println(r.StatusCode, r.Request.URL, r.Ctx.Get("url"))
