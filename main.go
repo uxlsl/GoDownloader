@@ -194,8 +194,8 @@ func NewDownloader(confPath string) Downloader {
 	if err != nil {
 		log.Fatalf("error: %v", err)
 	}
-	fmt.Println("读取配置为:")
-	fmt.Println(downloader.conf)
+	log.Println("读取配置为:")
+	log.Println(downloader.conf)
 
 	downloader.client = redis.NewClient(&redis.Options{
 		Addr:     downloader.conf.Redis,
