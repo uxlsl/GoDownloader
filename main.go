@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -18,6 +17,7 @@ import (
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/debug"
 	"github.com/gocolly/colly/extensions"
+	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
 
@@ -91,15 +91,15 @@ func (d Downloader) download(urls []string) {
 		fmt.Println(r.StatusCode, r.Request.URL, r.Ctx.Get("url"))
 		reqURL := r.Request.URL.String()
 		if isServer(reqURL) {
-			fmt.Println("是请求本地地址!")
+			log.Info("是请求本地地址!")
 			return
 		}
 		if r.StatusCode != 200 {
-			fmt.Println("返回状态码不对!")
+			log.Info("返回状态码不对!")
 			return
 		}
 		if r.Request.URL.String() != r.Ctx.Get("url") {
-			fmt.Println("请求地址发生变化!")
+			log.Info("请求地址发生变化!")
 			return
 		}
 		filename := genFilename(reqURL)
@@ -109,7 +109,7 @@ func (d Downloader) download(urls []string) {
 			append(r.Body[:], []byte(extraHTML)...),
 			0644)
 		if err != nil {
-			fmt.Println(err)
+			log.Debug(err)
 			return
 		}
 		params := url.Values{}
@@ -121,10 +121,10 @@ func (d Downloader) download(urls []string) {
 	})
 	// Set error handler
 	c.OnError(func(r *colly.Response, err error) {
-		fmt.Println("Request URL:", r.Request.URL, "\nError:", err)
+		log.Debug("Request URL:", r.Request.URL, "\nError:", err)
 	})
 	c.OnRequest(func(r *colly.Request) {
-		fmt.Println("OnRequest")
+		log.Debug("OnRequest")
 		if isServer(r.URL.String()) {
 			return
 		}
@@ -143,11 +143,11 @@ func (d Downloader) download(urls []string) {
 		}
 	})
 	c.RedirectHandler = func(req *http.Request, via []*http.Request) error {
-		fmt.Println("redirect")
+		log.Debug("redirect")
 		return errors.New("不能重定向")
 	}
 	if d.conf.Proxy {
-		fmt.Println("使用代理！")
+		log.Debug("使用代理！")
 		c.SetProxyFunc(randomProxySwitcher)
 	}
 	c.SetRequestTimeout(time.Duration(10) * time.Second)
@@ -208,7 +208,7 @@ func NewDownloader(confPath string) Downloader {
 func (d Downloader) run() {
 	for {
 		urls := d.getUrls(d.conf.Num)
-		fmt.Printf("从队列中取出url数量 %d\n", len(urls))
+		log.Printf("从队列中取出url数量 %d\n", len(urls))
 		if len(urls) > 0 {
 			d.download(urls)
 		} else {
@@ -233,6 +233,10 @@ func main() {
 	if len(os.Args) == 1 {
 		log.Fatalf("请提供配置文件参数")
 	}
+	log.SetFormatter(&log.TextFormatter{
+		DisableColors: true,
+		FullTimestamp: true,
+	})
 	downloader := NewDownloader(os.Args[1])
 	downloader.run()
 }
