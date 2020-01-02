@@ -84,22 +84,22 @@ func (d Downloader) download(urls []string) {
 			colly.Async(true),
 			colly.AllowURLRevisit(),
 		)
-
+		log.SetLevel(log.DebugLevel)
 	}
 
 	c.OnResponse(func(r *colly.Response) {
 		fmt.Println(r.StatusCode, r.Request.URL, r.Ctx.Get("url"))
 		reqURL := r.Request.URL.String()
 		if isServer(reqURL) {
-			log.Info("是请求本地地址!")
+			log.Debug(reqURL, "是请求本地地址!")
 			return
 		}
 		if r.StatusCode != 200 {
-			log.Info("返回状态码不对!")
+			log.Debug(r.StatusCode, "返回状态码不对!")
 			return
 		}
 		if r.Request.URL.String() != r.Ctx.Get("url") {
-			log.Info("请求地址发生变化!")
+			log.Debug(r.Request.URL.String(), r.Ctx.Get("url"), "请求地址发生变化")
 			return
 		}
 		filename := genFilename(reqURL)
@@ -208,9 +208,13 @@ func NewDownloader(confPath string) Downloader {
 func (d Downloader) run() {
 	for {
 		urls := d.getUrls(d.conf.Num)
-		log.Printf("从队列中取出url数量 %d\n", len(urls))
+		log.Printf("从队列中取出url数量 %d", len(urls))
 		if len(urls) > 0 {
+			start := time.Now()
 			d.download(urls)
+			end := time.Now()
+			elapsed := end.Sub(start)
+			log.Info(fmt.Sprintf("url数量%d, 总共花费 %v下载!", len(urls), elapsed))
 		} else {
 			time.Sleep(time.Duration(3) * time.Second)
 		}
@@ -229,14 +233,17 @@ func (d Downloader) getUrls(num int) []string {
 	return urls
 }
 
-func main() {
-	if len(os.Args) == 1 {
-		log.Fatalf("请提供配置文件参数")
-	}
+func init() {
 	log.SetFormatter(&log.TextFormatter{
 		DisableColors: true,
 		FullTimestamp: true,
 	})
+}
+
+func main() {
+	if len(os.Args) == 1 {
+		log.Fatalf("请提供配置文件参数")
+	}
 	downloader := NewDownloader(os.Args[1])
 	downloader.run()
 }
