@@ -105,21 +105,24 @@ func (d Downloader) download(urls []string) {
 			return
 		}
 		filename := genFilename(reqURL)
-		extraHTML := fmt.Sprintf("\nEND\nSEEDINFO\n %s \nSEEDINFO", r.Ctx.Get("data"))
-		err := ioutil.WriteFile(
-			fmt.Sprintf("%s/%s", d.conf.Path, filename),
-			append(r.Body[:], []byte(extraHTML)...),
-			0644)
-		if err != nil {
-			log.Debug(err)
-			return
-		}
+		// 进行异步写文件
+		go func() {
+			extraHTML := fmt.Sprintf("\nEND\nSEEDINFO\n %s \nSEEDINFO", r.Ctx.Get("data"))
+			err := ioutil.WriteFile(
+				fmt.Sprintf("%s/%s", d.conf.Path, filename),
+				append(r.Body[:], []byte(extraHTML)...),
+				0644)
+			if err != nil {
+				log.Debug(err)
+				return
+			}
 		params := url.Values{}
 		params.Add("filepath", d.conf.Path)
 		params.Add("filename", filename)
 		params.Add("url", reqURL)
 		params.Add("data", r.Ctx.Get("data"))
 		c.Visit(notifyPath + params.Encode())
+		}()
 	})
 	// Set error handler
 	c.OnError(func(r *colly.Response, err error) {
