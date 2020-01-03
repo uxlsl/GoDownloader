@@ -17,7 +17,6 @@ import (
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/debug"
 	"github.com/gocolly/colly/extensions"
-	"github.com/gocolly/colly/queue"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
@@ -30,6 +29,7 @@ type Conf struct {
 	Num   int    `yaml:num`
 	Debug bool   `yaml:debug`
 	Log   string `yaml:log`
+	Retry bool   `yaml:retry`
 }
 
 // 下载文件完成,通知的服务地址
@@ -81,11 +81,6 @@ func (d Downloader) download(urls []string) {
 		colly.Async(true),
 		colly.AllowURLRevisit(),
 	)
-	// create a request queue with 2 consumer threads
-	q, _ := queue.New(
-		2, // Number of consumer threads
-		&queue.InMemoryQueueStorage{MaxSize: 10000}, // Use default queue storage
-	)
 
 	if d.conf.Debug {
 		c = colly.NewCollector(
@@ -123,12 +118,12 @@ func (d Downloader) download(urls []string) {
 				log.Debug(err)
 				return
 			}
-		params := url.Values{}
-		params.Add("filepath", d.conf.Path)
-		params.Add("filename", filename)
-		params.Add("url", reqURL)
-		params.Add("data", r.Ctx.Get("data"))
-		c.Visit(notifyPath + params.Encode())
+			params := url.Values{}
+			params.Add("filepath", d.conf.Path)
+			params.Add("filename", filename)
+			params.Add("url", reqURL)
+			params.Add("data", r.Ctx.Get("data"))
+			c.Visit(notifyPath + params.Encode())
 		}()
 	})
 	// Set error handler
@@ -164,7 +159,9 @@ func (d Downloader) download(urls []string) {
 	}
 	c.SetRequestTimeout(time.Duration(10) * time.Second)
 	extensions.RandomUserAgent(c)
-	SetRetry(c)
+	if d.conf.Retry {
+		SetRetry(c)
+	}
 	ESFHandle(c)
 	// c.Limit(&colly.LimitRule{
 	// 	DomainGlob:  "*",
@@ -190,9 +187,9 @@ func (d Downloader) download(urls []string) {
 			params.Add(k, v[0])
 		}
 		u.RawQuery = ""
-		q.AddURL(u.String() + "?" + params.Encode())
+		c.Visit(u.String() + "?" + params.Encode())
 	}
-	q.Run(c)
+	c.Wait()
 }
 
 // NewDownloader 初始化downloader

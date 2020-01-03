@@ -4,3 +4,4 @@ proxy: true
 num: 1000 
 debug: false
 log: ./logs/prod.log
+retry: false
