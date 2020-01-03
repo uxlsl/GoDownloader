@@ -29,6 +29,7 @@ type Conf struct {
 	Num   int    `yaml:num`
 	Debug bool   `yaml:debug`
 	Log   string `yaml:log`
+	Retry bool   `yaml:retry`
 }
 
 // 下载文件完成,通知的服务地址
@@ -116,12 +117,12 @@ func (d Downloader) download(urls []string) {
 				log.Debug(err)
 				return
 			}
-		params := url.Values{}
-		params.Add("filepath", d.conf.Path)
-		params.Add("filename", filename)
-		params.Add("url", reqURL)
-		params.Add("data", r.Ctx.Get("data"))
-		c.Visit(notifyPath + params.Encode())
+			params := url.Values{}
+			params.Add("filepath", d.conf.Path)
+			params.Add("filename", filename)
+			params.Add("url", reqURL)
+			params.Add("data", r.Ctx.Get("data"))
+			c.Visit(notifyPath + params.Encode())
 		}()
 	})
 	// Set error handler
@@ -157,7 +158,9 @@ func (d Downloader) download(urls []string) {
 	}
 	c.SetRequestTimeout(time.Duration(10) * time.Second)
 	extensions.RandomUserAgent(c)
-	SetRetry(c)
+	if d.conf.Retry {
+		SetRetry(c)
+	}
 	ESFHandle(c)
 	// c.Limit(&colly.LimitRule{
 	// 	DomainGlob:  "*",
