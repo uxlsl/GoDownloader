@@ -17,6 +17,7 @@ import (
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/debug"
 	"github.com/gocolly/colly/extensions"
+	"github.com/gocolly/colly/queue"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
@@ -81,6 +82,12 @@ func (d Downloader) download(urls []string) {
 		colly.Async(true),
 		colly.AllowURLRevisit(),
 	)
+	// create a request queue with 2 consumer threads
+	q, _ := queue.New(
+		2, // Number of consumer threads
+		&queue.InMemoryQueueStorage{MaxSize: 10000}, // Use default queue storage
+	)
+
 	if d.conf.Debug {
 		c = colly.NewCollector(
 			colly.Debugger(&debug.LogDebugger{}),
@@ -186,9 +193,9 @@ func (d Downloader) download(urls []string) {
 			params.Add(k, v[0])
 		}
 		u.RawQuery = ""
-		c.Visit(u.String() + "?" + params.Encode())
+		q.AddURL(u.String() + "?" + params.Encode())
 	}
-	c.Wait()
+	q.Run(c)
 }
 
 // NewDownloader 初始化downloader
