@@ -22,6 +22,9 @@ func ESFHandle(c *colly.Collector) {
 	c.RedirectHandler = new
 
 	c.OnResponse(func(r *colly.Response) {
+		if !strings.Contains(r.Request.URL.String(), "search.fang.com/captcha") {
+			return
+		}
 		doc, err := goquery.NewDocumentFromReader(bytes.NewReader(r.Body))
 		if err != nil {
 			return
