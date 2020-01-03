@@ -4,4 +4,3 @@ proxy: false
 num: 1000
 debug: true
 log: ./logs/dev.log
-retry: false
