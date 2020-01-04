@@ -23,13 +23,13 @@ import (
 
 // 配置结构
 type Conf struct {
-	Path  string `yaml:path`
-	Redis string `yaml:redis`
-	Proxy bool   `yaml:proxy`
-	Num   int    `yaml:num`
-	Debug bool   `yaml:debug`
-	Log   string `yaml:log`
-	Retry bool   `yaml:retry`
+	Path  string `yaml:"path"`
+	Redis string `yaml:"redis"`
+	Proxy bool   `yaml:"proxy"`
+	Num   int    `yaml:"num"`
+	Debug bool   `yaml:"debug"`
+	Log   string `yaml:"log"`
+	Retry bool   `yaml:"retry"`
 }
 
 // 下载文件完成,通知的服务地址
@@ -51,8 +51,8 @@ func genFilename(url string) string {
 
 // Seed 种子格式
 type Seed struct {
-	URL  string `json:url`
-	Data string `json:data`
+	URL  string `json:"url"`
+	Data string `json:"data"`
 }
 
 // Downloader 结构
