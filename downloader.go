@@ -130,25 +130,6 @@ func (d Downloader) download(seeds []Seed) {
 	c.OnError(func(r *colly.Response, err error) {
 		d.log.Info("Request URL:", r.Request.URL, "\nError:", err)
 	})
-	c.OnRequest(func(r *colly.Request) {
-		d.log.Info("OnRequest")
-		if isServer(r.URL.String()) {
-			return
-		}
-		m, _ := url.ParseQuery(r.URL.RawQuery)
-		if r.Ctx.Get("url") == "" {
-			r.Ctx.Put("data", m["data"][0])
-			r.URL.RawQuery = ""
-			params := url.Values{}
-			for k, v := range m {
-				if k != "data" {
-					params.Add(k, v[0])
-				}
-			}
-			r.URL.RawQuery = params.Encode()
-			r.Ctx.Put("url", r.URL.String())
-		}
-	})
 	c.RedirectHandler = func(req *http.Request, via []*http.Request) error {
 		d.log.Info("redirect")
 		return errors.New("不能重定向")
@@ -170,22 +151,10 @@ func (d Downloader) download(seeds []Seed) {
 	// })
 	// create a request queue with 2 consumer threads
 	for _, seed := range seeds {
-		u, err := url.Parse(seed.URL)
-		if err != nil {
-			continue
-		}
-		params := url.Values{}
-		params.Add("data", seed.Data)
-
-		m, err := url.ParseQuery(u.RawQuery)
-		if err != nil {
-			continue
-		}
-		for k, v := range m {
-			params.Add(k, v[0])
-		}
-		u.RawQuery = ""
-		c.Visit(u.String() + "?" + params.Encode())
+		ctx := colly.NewContext()
+		ctx.Put("data", seed.Data)
+		ctx.Put("url", seed.URL)
+		c.Request("GET", seed.URL, nil, ctx, nil)
 	}
 	c.Wait()
 }
