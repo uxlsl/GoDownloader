@@ -9,9 +9,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
-	"os"
 
 	"github.com/go-redis/redis/v7"
 	"github.com/gocolly/colly"
@@ -21,7 +21,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// 配置结构
+// Conf 配置结构
 type Conf struct {
 	Path  string `yaml:"path"`
 	Redis string `yaml:"redis"`
@@ -73,7 +73,7 @@ func (d Downloader) randomProxySwitcher(req *http.Request) (*url.URL, error) {
 	return &url.URL{Host: host}, nil
 }
 
-func (d Downloader) download(urls []string) {
+func (d Downloader) download(seeds []Seed) {
 	randomProxySwitcher := func(req *http.Request) (*url.URL, error) {
 		return d.randomProxySwitcher(req)
 	}
@@ -169,9 +169,7 @@ func (d Downloader) download(urls []string) {
 	// 	RandomDelay: time.Second,
 	// })
 	// create a request queue with 2 consumer threads
-	for _, v := range urls {
-		var seed Seed
-		json.Unmarshal([]byte(v), &seed)
+	for _, seed := range seeds {
 		u, err := url.Parse(seed.URL)
 		if err != nil {
 			continue
@@ -224,28 +222,33 @@ func NewDownloader(confPath string) Downloader {
 
 func (d Downloader) run() {
 	for {
-		urls := d.getUrls(d.conf.Num)
-		d.log.Printf("从队列中取出url数量 %d", len(urls))
-		if len(urls) > 0 {
+		seeds := d.getSeeds(d.conf.Num)
+		d.log.Printf("从队列中取出种子数量 %d", len(seeds))
+		if len(seeds) > 0 {
 			start := time.Now()
-			d.download(urls)
+			d.download(seeds)
 			end := time.Now()
 			elapsed := end.Sub(start)
-			d.log.Info(fmt.Sprintf("url数量%d, 总共花费 %v下载!", len(urls), elapsed))
+			d.log.Info(fmt.Sprintf("种子数量%d, 总共花费 %v下载!", len(seeds), elapsed))
 		} else {
 			time.Sleep(time.Duration(3) * time.Second)
 		}
 	}
 }
 
-func (d Downloader) getUrls(num int) []string {
-	urls := make([]string, 0)
+func (d Downloader) getSeeds(num int) []Seed {
+	seeds := make([]Seed, 0)
 	for i := 0; i < num; i++ {
 		v, err := d.client.LPop("GoDownloader:start_urls").Result()
 		if err != nil {
 			break
 		}
-		urls = append(urls, v)
+		var seed Seed
+		err = json.Unmarshal([]byte(v), &seed)
+		if err != nil {
+			break
+		}
+		seeds = append(seeds, seed)
 	}
-	return urls
+	return seeds
 }
