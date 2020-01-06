@@ -32,6 +32,7 @@ type Conf struct {
 	Log        string `yaml:"log"`
 	Retry      bool   `yaml:"retry"`
 	RetryTimes int    `yaml:"retry_times"`
+	SeedKey    string `yaml:"SeedKey"`
 }
 
 // 下载文件完成,通知的服务地址
@@ -232,17 +233,21 @@ func (d Downloader) run() {
 }
 
 func (d Downloader) getSeeds(num int) []Seed {
+	type T struct {
+		SourceURL string `json:"source_url"`
+	}
 	seeds := make([]Seed, 0)
 	for i := 0; i < num; i++ {
-		v, err := d.client.LPop("GoDownloader:start_urls").Result()
+		v, err := d.client.LPop(d.conf.SeedKey).Result()
 		if err != nil {
 			break
 		}
-		var seed Seed
-		err = json.Unmarshal([]byte(v), &seed)
+		var t T
+		err = json.Unmarshal([]byte(v), &t)
 		if err != nil {
 			break
 		}
+		seed := Seed{URL: t.SourceURL, Data: v}
 		seeds = append(seeds, seed)
 	}
 	return seeds

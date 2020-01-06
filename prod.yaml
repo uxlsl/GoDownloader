@@ -6,3 +6,4 @@ debug: false
 log: ./logs/prod.log
 retry: false
 retry_times: 3
+SeedKey: GoDownloader:start_urls
