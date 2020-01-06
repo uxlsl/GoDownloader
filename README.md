@@ -17,9 +17,11 @@ go run main.go ./dev.yaml|./prod.yaml
 env FLASK_APP=api.py flask run --port 9015
 
 ```
-种子转换格式并投放!
+or 
 ```
-python seeds.py 
+
+gunicorn -w 4 -b 127.0.0.1:9015 api:app
+
 ```
 
 ## 思考
