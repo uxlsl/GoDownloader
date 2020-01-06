@@ -8,7 +8,8 @@
 ```
 
 export GOPROXY=https://goproxy.cn
-go run main.go ./dev.yaml|./prod.yaml
+go build
+./hello dev.yaml|prod.yaml
 
 ```
 
