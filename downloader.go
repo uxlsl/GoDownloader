@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -216,6 +217,7 @@ func NewDownloader(confPath string) Downloader {
 }
 
 func (d Downloader) run() {
+	os.MkdirAll(d.conf.Log, os.ModePerm)
 	for {
 		seeds := d.getSeeds(d.conf.Num)
 		d.log.Printf("从队列中取出种子数量 %d,重试种子 %d", len(seeds), len(d.RetrySeed))
