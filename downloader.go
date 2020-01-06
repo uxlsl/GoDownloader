@@ -34,6 +34,7 @@ type Conf struct {
 	Retry      bool   `yaml:"retry"`
 	RetryTimes int    `yaml:"retry_times"`
 	SeedKey    string `yaml:"SeedKey"`
+	Limit      bool   `yaml:"limit"`
 }
 
 // 下载文件完成,通知的服务地址
@@ -162,12 +163,13 @@ func (d *Downloader) download(seeds []Seed) {
 		})
 	}
 	ESFHandle(c)
-	// c.Limit(&colly.LimitRule{
-	// 	DomainGlob:  "*",
-	// 	Parallelism: 8,
-	// 	RandomDelay: time.Second,
-	// })
-	// create a request queue with 2 consumer threads
+	if d.conf.Limit {
+		c.Limit(&colly.LimitRule{
+			DomainGlob:  "*",
+			Parallelism: 8,
+			RandomDelay: time.Second,
+		})
+	}
 	for _, seed := range seeds {
 		ctx := colly.NewContext()
 		ctx.Put("data", seed.Data)

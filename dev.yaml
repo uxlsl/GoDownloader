@@ -7,3 +7,4 @@ log: ./logs/dev.log
 retry: true
 retry_times: 3
 SeedKey: GoDownloader:start_urls
+limit: false
