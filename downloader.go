@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,13 +24,14 @@ import (
 
 // Conf 配置结构
 type Conf struct {
-	Path  string `yaml:"path"`
-	Redis string `yaml:"redis"`
-	Proxy bool   `yaml:"proxy"`
-	Num   int    `yaml:"num"`
-	Debug bool   `yaml:"debug"`
-	Log   string `yaml:"log"`
-	Retry bool   `yaml:"retry"`
+	Path       string `yaml:"path"`
+	Redis      string `yaml:"redis"`
+	Proxy      bool   `yaml:"proxy"`
+	Num        int    `yaml:"num"`
+	Debug      bool   `yaml:"debug"`
+	Log        string `yaml:"log"`
+	Retry      bool   `yaml:"retry"`
+	RetryTimes int    `yaml:"retry_times"`
 }
 
 // 下载文件完成,通知的服务地址
@@ -57,9 +59,10 @@ type Seed struct {
 
 // Downloader 结构
 type Downloader struct {
-	conf   Conf
-	client *redis.Client
-	log    *log.Logger
+	conf      Conf
+	client    *redis.Client
+	log       *log.Logger
+	RetrySeed []*colly.Context
 }
 
 func (d Downloader) randomProxySwitcher(req *http.Request) (*url.URL, error) {
@@ -73,7 +76,7 @@ func (d Downloader) randomProxySwitcher(req *http.Request) (*url.URL, error) {
 	return &url.URL{Host: host}, nil
 }
 
-func (d Downloader) download(seeds []Seed) {
+func (d *Downloader) download(seeds []Seed) {
 	randomProxySwitcher := func(req *http.Request) (*url.URL, error) {
 		return d.randomProxySwitcher(req)
 	}
@@ -126,10 +129,6 @@ func (d Downloader) download(seeds []Seed) {
 			c.Visit(notifyPath + params.Encode())
 		}()
 	})
-	// Set error handler
-	c.OnError(func(r *colly.Response, err error) {
-		d.log.Info("Request URL:", r.Request.URL, "\nError:", err)
-	})
 	c.RedirectHandler = func(req *http.Request, via []*http.Request) error {
 		d.log.Info("redirect")
 		return errors.New("不能重定向")
@@ -141,7 +140,24 @@ func (d Downloader) download(seeds []Seed) {
 	c.SetRequestTimeout(time.Duration(10) * time.Second)
 	extensions.RandomUserAgent(c)
 	if d.conf.Retry {
-		SetRetry(c)
+		// Set error handler
+		c.OnError(func(r *colly.Response, err error) {
+			d.log.Info("Request URL:", r.Request.URL, "\nError:", err)
+			count := r.Ctx.Get("retry_times")
+			if count == "" {
+				r.Ctx.Put("retry_times", "1")
+				d.RetrySeed = append(d.RetrySeed, r.Ctx)
+			} else {
+				c, err := strconv.Atoi(count)
+				if err != nil {
+					return
+				}
+				if c <= d.conf.RetryTimes {
+					r.Ctx.Put("retry_times", string(c+1))
+					d.RetrySeed = append(d.RetrySeed, r.Ctx)
+				}
+			}
+		})
 	}
 	ESFHandle(c)
 	// c.Limit(&colly.LimitRule{
@@ -154,8 +170,13 @@ func (d Downloader) download(seeds []Seed) {
 		ctx := colly.NewContext()
 		ctx.Put("data", seed.Data)
 		ctx.Put("url", seed.URL)
+		ctx.Put("retry_times", "0")
 		c.Request("GET", seed.URL, nil, ctx, nil)
 	}
+	for _, ctx := range d.RetrySeed {
+		c.Request("GET", ctx.Get("url"), nil, ctx, nil)
+	}
+	d.RetrySeed = d.RetrySeed[:0]
 	c.Wait()
 }
 
@@ -192,13 +213,14 @@ func NewDownloader(confPath string) Downloader {
 func (d Downloader) run() {
 	for {
 		seeds := d.getSeeds(d.conf.Num)
-		d.log.Printf("从队列中取出种子数量 %d", len(seeds))
-		if len(seeds) > 0 {
+		d.log.Printf("从队列中取出种子数量 %d,重试种子 %d", len(seeds), len(d.RetrySeed))
+		if len(seeds) > 0 || len(d.RetrySeed) > 0 {
 			start := time.Now()
 			d.download(seeds)
 			end := time.Now()
 			elapsed := end.Sub(start)
-			d.log.Info(fmt.Sprintf("种子数量%d, 总共花费 %v下载!", len(seeds), elapsed))
+			d.log.Info(fmt.Sprintf("种子数量%d, 重试种子数%d, 总共花费 %v下载!", len(seeds), len(d.RetrySeed),
+				elapsed))
 		} else {
 			time.Sleep(time.Duration(3) * time.Second)
 		}

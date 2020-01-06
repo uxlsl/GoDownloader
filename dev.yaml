@@ -1,7 +1,8 @@
 path: /yf/Downloads/
 redis: localhost:6379
-proxy: true
+proxy: false
 num: 1000
 debug: true
 log: ./logs/dev.log
-retry: false
+retry: true
+retry_times: 3
