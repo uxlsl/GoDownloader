@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +17,7 @@ import (
 	"github.com/gocolly/colly"
 	"github.com/gocolly/colly/debug"
 	"github.com/gocolly/colly/extensions"
+	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
@@ -201,12 +201,16 @@ func NewDownloader(confPath string) Downloader {
 	})
 	downloader.log = log.New()
 	// You could set this to any `io.Writer` such as a file
-	file, err := os.OpenFile(downloader.conf.Log, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err == nil {
-		downloader.log.Out = file
-	} else {
-		log.Info("Failed to log to file, using default stderr")
+	logf, err := rotatelogs.New(
+		downloader.conf.Log+".%Y%m%d%H%M",
+		rotatelogs.WithLinkName(downloader.conf.Log),
+		rotatelogs.WithMaxAge(24*time.Hour),
+		rotatelogs.WithRotationTime(time.Hour),
+	)
+	if err != nil {
+		log.Printf("failed to create rotatelogs: %s", err)
 	}
+	downloader.log.Out = logf
 	return downloader
 }
 
