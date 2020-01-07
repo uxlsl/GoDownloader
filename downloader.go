@@ -96,7 +96,7 @@ func (d *Downloader) download(seeds []Seed) {
 				return
 			}
 			if c <= d.conf.RetryTimes {
-				r.Ctx.Put("retry_times", string(c+1))
+				r.Ctx.Put("retry_times", strconv.FormatInt(int64(c)+1, 10))
 				d.RetrySeed = append(d.RetrySeed, r.Ctx)
 			}
 		}
