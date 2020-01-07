@@ -187,10 +187,11 @@ func (d *Downloader) download(seeds []Seed) {
 		ctx.Put("Check", seed.Check)
 		c.Request("GET", seed.URL, nil, ctx, nil)
 	}
-	for _, ctx := range d.RetrySeed {
+	RetrySeed := d.RetrySeed
+	d.RetrySeed = make([]*colly.Context, 0)
+	for _, ctx := range RetrySeed {
 		c.Request("GET", ctx.Get("url"), nil, ctx, nil)
 	}
-	d.RetrySeed = d.RetrySeed[:0]
 	c.Wait()
 }
 
