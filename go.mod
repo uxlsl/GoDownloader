@@ -1,4 +1,4 @@
-module hello
+module seedDownloader
 
 go 1.13
 
