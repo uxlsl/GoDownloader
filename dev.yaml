@@ -5,6 +5,6 @@ num: 1000
 debug: true
 log: ./logs/dev.log
 retry: true
-retry_times: 3
+retry_times: 30
 SeedKey: GoDownloader:start_urls
 limit: false

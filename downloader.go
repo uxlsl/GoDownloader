@@ -56,8 +56,9 @@ func genFilename(url string) string {
 
 // Seed 种子格式
 type Seed struct {
-	URL  string `json:"url"`
-	Data string `json:"data"`
+	URL   string `json:"url"`
+	Data  string `json:"data"`
+	Check string // 用来检查下载的是否有效
 }
 
 // Downloader 结构
@@ -82,6 +83,23 @@ func (d Downloader) randomProxySwitcher(req *http.Request) (*url.URL, error) {
 func (d *Downloader) download(seeds []Seed) {
 	randomProxySwitcher := func(req *http.Request) (*url.URL, error) {
 		return d.randomProxySwitcher(req)
+	}
+	RetryFunc := func(r *colly.Response) {
+		d.log.Debug("重试请求")
+		count := r.Ctx.Get("retry_times")
+		if count == "" {
+			r.Ctx.Put("retry_times", "1")
+			d.RetrySeed = append(d.RetrySeed, r.Ctx)
+		} else {
+			c, err := strconv.Atoi(count)
+			if err != nil {
+				return
+			}
+			if c <= d.conf.RetryTimes {
+				r.Ctx.Put("retry_times", string(c+1))
+				d.RetrySeed = append(d.RetrySeed, r.Ctx)
+			}
+		}
 	}
 	c := colly.NewCollector(
 		colly.Async(true),
@@ -110,6 +128,10 @@ func (d *Downloader) download(seeds []Seed) {
 		}
 		if r.Request.URL.String() != r.Ctx.Get("url") {
 			d.log.Debug(r.Request.URL.String(), r.Ctx.Get("url"), "请求地址发生变化")
+			return
+		}
+		if !strings.Contains(string(r.Body), r.Ctx.Get("Check")) {
+			RetryFunc(r)
 			return
 		}
 		filename := genFilename(reqURL)
@@ -146,20 +168,7 @@ func (d *Downloader) download(seeds []Seed) {
 		// Set error handler
 		c.OnError(func(r *colly.Response, err error) {
 			d.log.Info("Request URL:", r.Request.URL, "\nError:", err)
-			count := r.Ctx.Get("retry_times")
-			if count == "" {
-				r.Ctx.Put("retry_times", "1")
-				d.RetrySeed = append(d.RetrySeed, r.Ctx)
-			} else {
-				c, err := strconv.Atoi(count)
-				if err != nil {
-					return
-				}
-				if c <= d.conf.RetryTimes {
-					r.Ctx.Put("retry_times", string(c+1))
-					d.RetrySeed = append(d.RetrySeed, r.Ctx)
-				}
-			}
+			RetryFunc(r)
 		})
 	}
 	ESFHandle(c)
@@ -175,6 +184,7 @@ func (d *Downloader) download(seeds []Seed) {
 		ctx.Put("data", seed.Data)
 		ctx.Put("url", seed.URL)
 		ctx.Put("retry_times", "0")
+		ctx.Put("Check", seed.Check)
 		c.Request("GET", seed.URL, nil, ctx, nil)
 	}
 	for _, ctx := range d.RetrySeed {
@@ -237,8 +247,12 @@ func (d Downloader) run() {
 }
 
 func (d Downloader) getSeeds(num int) []Seed {
+	type INFO struct {
+		Check string `json:"detail_available_check"`
+	}
 	type T struct {
 		SourceURL string `json:"source_url"`
+		Info      INFO
 	}
 	seeds := make([]Seed, 0)
 	for i := 0; i < num; i++ {
@@ -251,7 +265,7 @@ func (d Downloader) getSeeds(num int) []Seed {
 		if err != nil {
 			break
 		}
-		seed := Seed{URL: t.SourceURL, Data: v}
+		seed := Seed{URL: t.SourceURL, Data: v, Check: t.Info.Check}
 		seeds = append(seeds, seed)
 	}
 	return seeds
