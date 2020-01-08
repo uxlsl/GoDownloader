@@ -4,7 +4,7 @@ proxy: true
 num: 1000 
 debug: false
 log: ./logs/prod.log
-retry: false
-retry_times: 3
+retry: true
+retry_times: 50
 SeedKey: GoDownloader:start_urls
 Limit: false
