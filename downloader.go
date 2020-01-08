@@ -169,7 +169,7 @@ func (d *Downloader) download(seeds []Seed) {
 	if d.conf.Retry {
 		// Set error handler
 		c.OnError(func(r *colly.Response, err error) {
-			d.log.Info("Request URL:", r.Request.URL, "\nError:", err)
+			d.log.Debug("Request URL:", r.Request.URL, "\nError:", err)
 			RetryFunc(r)
 		})
 	}
