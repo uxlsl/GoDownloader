@@ -153,7 +153,7 @@ func (d *Downloader) download(seeds []Seed) {
 			params.Add("filename", filename)
 			params.Add("url", reqURL)
 			params.Add("data", r.Ctx.Get("data"))
-			c.Visit(notifyPath + params.Encode())
+			http.Get(notifyPath + params.Encode())
 		}()
 	})
 	c.RedirectHandler = func(req *http.Request, via []*http.Request) error {
