@@ -171,7 +171,7 @@ func (d *Downloader) download(seeds []Seed) {
 			RetryFunc(r)
 		})
 	}
-	ESFHandle(c)
+	ESFHandle(d, c)
 	if d.conf.Limit {
 		c.Limit(&colly.LimitRule{
 			DomainGlob:  "*",

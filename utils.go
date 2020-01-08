@@ -11,7 +11,7 @@ import (
 )
 
 // ESFHandle 房天下网站处理
-func ESFHandle(c *colly.Collector) {
+func ESFHandle(d *Downloader, c *colly.Collector) {
 	old := c.RedirectHandler
 	new := func(req *http.Request, via []*http.Request) error {
 		if strings.Contains(req.URL.String(), "fang.com") {
@@ -39,6 +39,6 @@ func ESFHandle(c *colly.Collector) {
 		}
 		r.Request.URL = u
 		r.Ctx.Put("url", esf)
-		r.Request.Retry()
+		d.RetrySeed = append(d.RetrySeed, r.Ctx)
 	})
 }
