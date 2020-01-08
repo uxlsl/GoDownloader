@@ -1,7 +1,7 @@
 path: /yf/Downloads/
 redis: localhost:6379
 proxy: true
-num: 1000
+num: 1000 # 最大同时请求数
 debug: true
 log: ./logs/dev.log
 retry: true

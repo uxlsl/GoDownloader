@@ -232,7 +232,12 @@ func NewDownloader(confPath string) Downloader {
 func (d Downloader) run() {
 	os.MkdirAll(path.Dir(d.conf.Log), os.ModePerm)
 	for {
-		seeds := d.getSeeds(d.conf.Num)
+		var seeds []Seed
+		if d.conf.Num > len(d.RetrySeed) {
+			seeds = d.getSeeds(d.conf.Num - len(d.RetrySeed))
+		} else {
+			seeds = make([]Seed, 0)
+		}
 		d.log.Infof("从队列中取出种子数量 %d,重试种子 %d", len(seeds), len(d.RetrySeed))
 		if len(seeds) > 0 || len(d.RetrySeed) > 0 {
 			start := time.Now()
