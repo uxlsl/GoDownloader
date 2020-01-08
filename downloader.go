@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -85,7 +87,7 @@ func (d *Downloader) download(seeds []Seed) {
 		return d.randomProxySwitcher(req)
 	}
 	RetryFunc := func(r *colly.Response) {
-		d.log.Debug("重试请求")
+		d.log.Debugf("重试请求 %s", r.Ctx.Get("url"))
 		count := r.Ctx.Get("retry_times")
 		if count == "" {
 			r.Ctx.Put("retry_times", "1")
@@ -112,11 +114,11 @@ func (d *Downloader) download(seeds []Seed) {
 			colly.Async(true),
 			colly.AllowURLRevisit(),
 		)
-		log.SetLevel(log.DebugLevel)
+		d.log.SetLevel(log.DebugLevel)
 	}
 
 	c.OnResponse(func(r *colly.Response) {
-		d.log.Info(r.StatusCode, r.Request.URL, r.Ctx.Get("url"))
+		d.log.Debug(r.StatusCode, r.Request.URL, r.Ctx.Get("url"))
 		reqURL := r.Request.URL.String()
 		if isServer(reqURL) {
 			d.log.Debug(reqURL, "是请求本地地址!")
@@ -155,7 +157,7 @@ func (d *Downloader) download(seeds []Seed) {
 		}()
 	})
 	c.RedirectHandler = func(req *http.Request, via []*http.Request) error {
-		d.log.Info("redirect")
+		d.log.Debug("redirect")
 		return errors.New("不能重定向")
 	}
 	if d.conf.Proxy {
@@ -216,12 +218,10 @@ func NewDownloader(confPath string) Downloader {
 	})
 	downloader.log = log.New()
 	// You could set this to any `io.Writer` such as a file
+	logpath, _ := filepath.Abs(downloader.conf.Log)
 	logf, err := rotatelogs.New(
-		downloader.conf.Log+".%Y%m%d%H%M",
-		rotatelogs.WithLinkName(downloader.conf.Log),
-		rotatelogs.WithMaxAge(24*time.Hour),
-		rotatelogs.WithRotationTime(time.Hour),
-	)
+		logpath+".%Y%m%d",
+		rotatelogs.WithLinkName(logpath))
 	if err != nil {
 		log.Printf("failed to create rotatelogs: %s", err)
 	}
@@ -230,17 +230,17 @@ func NewDownloader(confPath string) Downloader {
 }
 
 func (d Downloader) run() {
-	os.MkdirAll(d.conf.Log, os.ModePerm)
+	os.MkdirAll(path.Dir(d.conf.Log), os.ModePerm)
 	for {
 		seeds := d.getSeeds(d.conf.Num)
-		d.log.Printf("从队列中取出种子数量 %d,重试种子 %d", len(seeds), len(d.RetrySeed))
+		d.log.Infof("从队列中取出种子数量 %d,重试种子 %d", len(seeds), len(d.RetrySeed))
 		if len(seeds) > 0 || len(d.RetrySeed) > 0 {
 			start := time.Now()
 			d.download(seeds)
 			end := time.Now()
 			elapsed := end.Sub(start)
-			d.log.Info(fmt.Sprintf("种子数量%d, 重试种子数%d, 总共花费 %v下载!", len(seeds), len(d.RetrySeed),
-				elapsed))
+			d.log.Infof("种子数量%d, 重试种子数%d, 总共花费 %v下载!", len(seeds), len(d.RetrySeed),
+				elapsed)
 		} else {
 			time.Sleep(time.Duration(3) * time.Second)
 		}
