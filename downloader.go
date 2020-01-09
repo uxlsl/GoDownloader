@@ -10,10 +10,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/go-redis/redis/v7"
@@ -71,7 +73,7 @@ type Downloader struct {
 	RetrySeed []*colly.Context
 	start     time.Time
 	success   int
-	total int
+	total     int
 }
 
 func (d Downloader) randomProxySwitcher(req *http.Request) (*url.URL, error) {
@@ -235,14 +237,23 @@ func NewDownloader(confPath string) Downloader {
 
 func (d *Downloader) run() {
 	os.MkdirAll(path.Dir(d.conf.Log), os.ModePerm)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	d.start = time.Now()
+	done := false
 	go func() {
-		for {
+		sig := <-sigs
+		d.log.Info(sig)
+		d.log.Info("exiting")
+		done = true
+	}()
+	go func() {
+		for !done {
 			d.log.Infof("自%v,总共%d, 成功下载 %d", d.start, d.total, d.success)
 			time.Sleep(time.Duration(60) * time.Second)
 		}
 	}()
-	for {
+	for !done {
 		var seeds []Seed
 		if d.conf.Num > len(d.RetrySeed) {
 			seeds = d.getSeeds(d.conf.Num - len(d.RetrySeed))
