@@ -71,6 +71,7 @@ type Downloader struct {
 	RetrySeed []*colly.Context
 	start     time.Time
 	success   int
+	total int
 }
 
 func (d Downloader) randomProxySwitcher(req *http.Request) (*url.URL, error) {
@@ -237,7 +238,7 @@ func (d *Downloader) run() {
 	d.start = time.Now()
 	go func() {
 		for {
-			d.log.Infof("自%v,总共成功下载 %d", d.start, d.success)
+			d.log.Infof("自%v,总共%d, 成功下载 %d", d.start, d.total, d.success)
 			time.Sleep(time.Duration(60) * time.Second)
 		}
 	}()
@@ -248,6 +249,7 @@ func (d *Downloader) run() {
 		} else {
 			seeds = make([]Seed, 0)
 		}
+		d.total += len(seeds)
 		d.log.Infof("从队列中取出种子数量 %d,重试种子 %d", len(seeds), len(d.RetrySeed))
 		if len(seeds) > 0 || len(d.RetrySeed) > 0 {
 			start := time.Now()
