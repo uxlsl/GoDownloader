@@ -69,6 +69,8 @@ type Downloader struct {
 	client    *redis.Client
 	log       *log.Logger
 	RetrySeed []*colly.Context
+	start     time.Time
+	success   int
 }
 
 func (d Downloader) randomProxySwitcher(req *http.Request) (*url.URL, error) {
@@ -136,6 +138,7 @@ func (d *Downloader) download(seeds []Seed) {
 			RetryFunc(r)
 			return
 		}
+		d.success++
 		filename := genFilename(reqURL)
 		// 进行异步写文件
 		go func() {
@@ -229,8 +232,15 @@ func NewDownloader(confPath string) Downloader {
 	return downloader
 }
 
-func (d Downloader) run() {
+func (d *Downloader) run() {
 	os.MkdirAll(path.Dir(d.conf.Log), os.ModePerm)
+	d.start = time.Now()
+	go func() {
+		for {
+			d.log.Infof("自%v,总共成功下载 %d", d.start, d.success)
+			time.Sleep(time.Duration(60) * time.Second)
+		}
+	}()
 	for {
 		var seeds []Seed
 		if d.conf.Num > len(d.RetrySeed) {
