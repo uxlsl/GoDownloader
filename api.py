@@ -1,4 +1,5 @@
 import time
+import json
 from celery import Celery
 from flask import Flask, escape, request
 
@@ -12,7 +13,8 @@ def hello():
     file_name = request.args.get("filename")
     file_path = request.args.get("filepath")
     url = request.args.get("url")
-    data = request.args.get("data")
+    data = json.loads(request.args.get("data"))
+    data['key_route'] = 'GoDownloader:start_urls'
     celery.send_task(
                 "anjuke_upload_service.upload_service.upload_new_file",
                 args=[
@@ -20,7 +22,7 @@ def hello():
                     file_path,
                     file_name,
                     int(time.time()), 
-                    data,
+                    json.dumps(data),
                     url
                 ],
                 queue='upload_queue_anjuke')
