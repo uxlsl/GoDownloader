@@ -249,7 +249,9 @@ func (d *Downloader) run() {
 	}()
 	go func() {
 		for !done {
-			d.log.Infof("自%v,种子总共%d, 成功下载 %d", d.start, d.total, d.success)
+			total, _ := d.client.LLen(d.conf.SeedKey).Result()
+			d.log.Infof("待下载总数:%d", total)
+			d.log.Infof("自%v,种子总共:%d, 成功下载:%d", d.start, d.total, d.success)
 			time.Sleep(time.Duration(60) * time.Second)
 		}
 	}()
