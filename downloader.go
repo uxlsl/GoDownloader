@@ -272,7 +272,7 @@ func (d *Downloader) run() {
 			d.log.Infof("种子数量%d, 重试种子数%d, 总共花费 %v下载!", len(seeds), len(d.RetrySeed),
 				elapsed)
 		} else {
-			time.Sleep(time.Duration(3) * time.Second)
+			time.Sleep(time.Duration(60) * time.Second)
 		}
 	}
 }
