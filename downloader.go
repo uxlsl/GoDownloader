@@ -174,9 +174,6 @@ func (d *Downloader) download(seeds []Seed) {
 	}
 	c.SetRequestTimeout(time.Duration(10) * time.Second)
 	extensions.RandomUserAgent(c)
-	c.OnError(func(r *colly.Response, err error) {
-		d.recentSucess++
-	})
 	if d.conf.Retry {
 		// Set error handler
 		c.OnError(func(r *colly.Response, err error) {
