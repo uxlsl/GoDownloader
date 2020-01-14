@@ -290,6 +290,7 @@ func (d *Downloader) run() {
 			time.Sleep(time.Duration(60) * time.Second)
 		}
 	}
+	d.putBackSeeds()
 }
 
 func (d Downloader) getSeeds(num int) []Seed {
@@ -315,4 +316,11 @@ func (d Downloader) getSeeds(num int) []Seed {
 		seeds = append(seeds, seed)
 	}
 	return seeds
+}
+
+func (d *Downloader) putBackSeeds() {
+	d.log.Info("正在把重试的种子保存")
+	for _, ctx := range d.RetrySeed {
+		d.client.LPush(d.conf.SeedKey, ctx.Get("data"))
+	}
 }
