@@ -8,3 +8,4 @@ retry: true
 retry_times: 30
 SeedKey: GoDownloader:start_urls
 limit: false
+timeout: 10

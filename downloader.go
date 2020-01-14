@@ -39,6 +39,7 @@ type Conf struct {
 	RetryTimes int    `yaml:"retry_times"`
 	SeedKey    string `yaml:"SeedKey"`
 	Limit      bool   `yaml:"limit"`
+	TimeOut    int    `ymal:"timeout"`
 }
 
 // 下载文件完成,通知的服务地址
@@ -177,7 +178,7 @@ func (d *Downloader) download(seeds []Seed) {
 		d.log.Info("使用代理！")
 		c.SetProxyFunc(randomProxySwitcher)
 	}
-	c.SetRequestTimeout(time.Duration(10) * time.Second)
+	c.SetRequestTimeout(time.Duration(d.conf.TimeOut) * time.Second)
 	extensions.RandomUserAgent(c)
 	if d.conf.Retry {
 		// Set error handler

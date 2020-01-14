@@ -7,4 +7,5 @@ log: ./logs/prod.log
 retry: true
 retry_times: 50
 SeedKey: GoDownloader:start_urls
-Limit: false
+limit: false
+timeout: 10
