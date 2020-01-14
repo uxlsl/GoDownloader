@@ -67,14 +67,14 @@ type Seed struct {
 
 // Downloader 结构
 type Downloader struct {
-	conf           Conf
-	client         *redis.Client
-	log            *log.Logger
-	RetrySeed      []*colly.Context
-	start          time.Time
-	success        int
+	conf         Conf
+	client       *redis.Client
+	log          *log.Logger
+	RetrySeed    []*colly.Context
+	start        time.Time
+	success      int
 	recentSucess int
-	total          int
+	total        int
 }
 
 func (d Downloader) randomProxySwitcher(req *http.Request) (*url.URL, error) {
@@ -105,7 +105,12 @@ func (d *Downloader) download(seeds []Seed) {
 			}
 			if c <= d.conf.RetryTimes {
 				r.Ctx.Put("retry_times", strconv.FormatInt(int64(c)+1, 10))
-				d.RetrySeed = append(d.RetrySeed, r.Ctx)
+				ctx := colly.NewContext()
+				ctx.Put("data", r.Ctx.Get("data"))
+				ctx.Put("url", r.Ctx.Get("url"))
+				ctx.Put("retry_times", r.Ctx.Get("0"))
+				ctx.Put("Check", r.Ctx.Get("Check"))
+				d.RetrySeed = append(d.RetrySeed, ctx)
 			}
 		}
 	}
@@ -246,7 +251,8 @@ func (d *Downloader) run() {
 	go func() {
 		sig := <-sigs
 		d.log.Info(sig)
-		d.log.Info("exiting")
+		d.log.Info("正在退出")
+		fmt.Println("正在退出")
 		done = true
 	}()
 	go func() {
