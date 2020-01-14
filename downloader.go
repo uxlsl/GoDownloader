@@ -73,7 +73,7 @@ type Downloader struct {
 	RetrySeed      []*colly.Context
 	start          time.Time
 	success        int
-	recentDownload int
+	recentSucess int
 	total          int
 }
 
@@ -143,7 +143,7 @@ func (d *Downloader) download(seeds []Seed) {
 			return
 		}
 		d.success++
-		d.recentDownload++
+		d.recentSucess++
 		filename := genFilename(reqURL)
 		// 进行异步写文件
 		go func() {
@@ -175,7 +175,7 @@ func (d *Downloader) download(seeds []Seed) {
 	c.SetRequestTimeout(time.Duration(10) * time.Second)
 	extensions.RandomUserAgent(c)
 	c.OnError(func(r *colly.Response, err error) {
-		d.recentDownload++
+		d.recentSucess++
 	})
 	if d.conf.Retry {
 		// Set error handler
@@ -271,17 +271,17 @@ func (d *Downloader) run() {
 		d.log.Infof("从队列中取出种子数量 %d,重试种子 %d", len(seeds), len(d.RetrySeed))
 		if len(seeds) > 0 || len(d.RetrySeed) > 0 {
 			start := time.Now()
-			d.recentDownload = 0
+			d.recentSucess = 0
 			d.download(seeds)
 			end := time.Now()
 			elapsed := end.Sub(start)
 			var speed float64
-			if d.recentDownload == 0 {
+			if d.recentSucess == 0 {
 				speed = 0
 			} else {
-				speed = float64(d.recentDownload) / elapsed.Seconds()
+				speed = float64(d.recentSucess) / elapsed.Seconds()
 			}
-			d.log.Infof("种子数量%d, 重试种子数%d, 总共花费 %f秒下载!,平均速度 %f/s", len(seeds), len(d.RetrySeed),
+			d.log.Infof("种子数量%d, 重试种子数%d, 总共花费 %f秒下载!,平均成功下载速度 %f/s", len(seeds), len(d.RetrySeed),
 				elapsed.Seconds(), speed)
 		} else {
 			time.Sleep(time.Duration(60) * time.Second)
